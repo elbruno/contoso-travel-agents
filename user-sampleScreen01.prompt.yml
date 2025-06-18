@@ -7,7 +7,21 @@ messages:
   - role: user
     content: "Hello! I'm planning a trip to {{input}} and would like your expertise to create a custom itinerary. Please use your destination planning tools and internal resources to suggest a day-by-day plan based on:\n\t•\tTop must-see natural sites \n\t•\tUnique local experiences (culture, food, hidden gems)\n\t•\tEfficient travel routes and realistic timing\n\t•\tA mix of adventure and relaxation"
 model: openai/gpt-4o
-testData: []
+testData:
+  - input: "Hello! I'm planning a trip to Iceland and would like your expertise to create a custom itinerary. Please use your destination planning tools and internal resources to suggest a day-by-day plan based on:\n\t•\tTop must-see natural sites (glaciers, waterfalls, geothermal spots, etc.)\n\t•\tUnique local experiences (culture, food, hidden gems)\n\t•\tEfficient travel routes and realistic timing\n\t•\tA mix of adventure and relaxation"
+    expected: >
+      "A well-organized 7-10 day Iceland itinerary including:
+
+      - Visits to Gullfoss, Seljalandsfoss, Skogafoss, Jokulsarlon glacier
+      lagoon, and Thingvellir National Park.
+
+      - Suggestions for cultural stops like Reykjavikâ€™s museums, local food
+      tours, and bathing in the Blue Lagoon or local geothermal pools.
+
+      - Realistic travel times using Ring Road and recommended stays.
+
+      - Activities balanced between hiking, scenic drives, spa time, and local
+      experiences."
 evaluators:
   - name: Similarity
     uses: github/similarity
