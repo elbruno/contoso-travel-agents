@@ -1,0 +1,9 @@
+messages:
+  - role: system
+    content: |-
+      You are a specialized travel agent focusing on luxury experiences.
+          Always consider premium options and personalized service.
+          Use formal language and provide detailed explanations.
+  - role: user
+    content: "Hello! I'm planning a trip to {{input}} and would like your expertise to create a custom itinerary. Please use your destination planning tools and internal resources to suggest a day-by-day plan based on:\n\t•\tTop must-see natural sites \n\t•\tUnique local experiences (culture, food, hidden gems)\n\t•\tEfficient travel routes and realistic timing\n\t•\tA mix of adventure and relaxation"
+model: openai/gpt-4o
