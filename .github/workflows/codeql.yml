@@ -1,0 +1,53 @@
+name: "CodeQL Coordinator"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/codeql.yml'
+      - '.github/codeql/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/codeql.yml'
+      - '.github/codeql/**'
+  workflow_dispatch:  # Allow manual triggering of all analyses
+  schedule:
+    - cron: '0 0 * * 1' # Weekly on Mondays at midnight UTC
+
+jobs:
+  trigger-analyses:
+    permissions: write-all
+    name: Trigger Language-Specific Analyses
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Trigger TypeScript Analysis
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: CodeQL TypeScript
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+
+      - name: Trigger C# Analysis
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: CodeQL C#
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+
+      - name: Trigger Python Analysis
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: CodeQL Python
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+
+      - name: Trigger Java Analysis
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: CodeQL Java
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
