@@ -1,4 +1,4 @@
-namespace AITravelAgent.CustomerQueryServer.Models;
+namespace AITravelAgent.CustomerQueryTool;
 
 public class CustomerQueryAnalysisResult
 {

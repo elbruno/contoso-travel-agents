@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../AITravelAgent.ServiceDefaults/AITravelAgent.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\AITravelAgent.CustomerQueryTool\AITravelAgent.CustomerQueryTool.csproj" />
   </ItemGroup>
 
 </Project>
