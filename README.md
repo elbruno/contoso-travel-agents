@@ -2,7 +2,7 @@
 
 <img src="./docs/ai-travel-agents-logo.png" alt="" align="center" height="128" />
 
-# Azure AI Travel Agents with Llamaindex.TS and MCP
+# Contoso Travel Agents
 
 [![Join Azure AI Foundry Community Discord](https://img.shields.io/badge/Discord-Azure_AI_Foundry_Community_Discord-blue?style=flat-square&logo=discord&color=5865f2&logoColor=fff)](https://aka.ms/foundry/discord)
 [![Join Azure AI Foundry Developer Forum](https://img.shields.io/badge/GitHub-Azure_AI_Foundry_Developer_Forum-blue?style=flat-square&logo=github&color=000000&logoColor=fff)](https://aka.ms/foundry/forum)
