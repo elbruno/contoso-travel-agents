@@ -1,3 +1,39 @@
+
+/* Sample prompt cards styling */
+.sample-prompts {
+  margin-bottom: 2rem;
+}
+.sample-card {
+  background: rgba(255,255,255,0.85);
+  border-radius: 1.25rem;
+  box-shadow: 0 4px 24px 0 rgba(80, 80, 160, 0.10);
+  transition: box-shadow 0.2s, border 0.2s;
+  cursor: pointer;
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.sample-card:hover {
+  border-color: #6366f1;
+  box-shadow: 0 8px 32px 0 rgba(99,102,241,0.18);
+}
+.sample-card p {
+  color: #374151;
+  font-size: 1rem;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  line-clamp: 5;
+}
+
+footer {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
 :host {
   display: flex;
   justify-content: center;

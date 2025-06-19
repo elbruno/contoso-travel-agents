@@ -1,0 +1,23 @@
+
+/* Gradient background for the main app */
+.gradient-bg {
+  background: linear-gradient(135deg, #b3c6f7 0%, #e0c3fc 100%);
+  min-height: 100vh;
+  width: 100vw;
+  position: relative;
+}
+
+header {
+  background: transparent;
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .gradient-bg {
+    padding: 0;
+  }
+  header {
+    padding-top: 2rem;
+    padding-bottom: 1rem;
+  }
+}
