@@ -1,0 +1,48 @@
+$schema: "1.0"
+name: "contoso-travel-agents-devbox"
+image: microsoftvisualstudio_visualstudioplustools_vs-2022-ent-general-win11-m365-gen2
+tasks:
+  - name: winget
+    description: Install Visual Studio Code
+    parameters:
+      package: Microsoft.VisualStudioCode
+  - name: winget
+    description: Install .NET SDK Preview
+    parameters:
+      package: Microsoft.DotNet.SDK.Preview
+  - name: winget
+    description: Install Python 3.12
+    parameters:
+      package: Python.Python.3.12
+  - name: winget
+    description: Install Node.js
+    parameters:
+      package: OpenJS.NodeJS
+  - name: winget
+    description: Install Git
+    parameters:
+      package: Git.Git
+  - name: winget
+    description: Install Docker Desktop
+    parameters:
+      package: Docker.DockerDesktop
+  - name: winget
+    description: Install GitHub CLI
+    parameters:
+      package: GitHub.cli
+  - name: winget
+    description: Install PowerShell
+    parameters:
+      package: Microsoft.PowerShell
+  - name: winget
+    description: Install Azure CLI
+    parameters:
+      package: Microsoft.AzureCLI
+  - name: winget
+    description: Install Azure Developer CLI
+    parameters:
+      package: Microsoft.Azd
+  - name: winget
+    description: Install Fast Node Manager (fnm)
+    parameters:
+      package: Schniz.fnm
