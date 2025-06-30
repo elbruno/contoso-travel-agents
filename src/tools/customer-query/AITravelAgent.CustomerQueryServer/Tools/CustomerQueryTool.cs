@@ -17,7 +17,7 @@ public class CustomerQueryTool(ILogger<CustomerQueryTool> logger)
         logger.LogInformation("Received customer query: {customerQuery}", customerQuery);
         // Delegate to the external analyzer and map the result
         var result = await _analyzer.AnalyzeAsync(customerQuery);
-        return new CustomerQueryAnalysisResult
+        var cqar = new CustomerQueryAnalysisResult
         {
             CustomerQuery = result.CustomerQuery,
             Emotion = result.Emotion,
@@ -25,5 +25,9 @@ public class CustomerQueryTool(ILogger<CustomerQueryTool> logger)
             Requirements = result.Requirements,
             Preferences = result.Preferences
         };
+
+        logger.LogInformation("Analysis result: {@cqar}", cqar);
+
+        return cqar;
     }
 }

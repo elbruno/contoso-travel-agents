@@ -49,19 +49,16 @@
   >
     <div class="flex flex-col gap-4">
       @if ((chatService.messagesStream | async)?.length === 0) {
-      <div class="flex flex-row gap-4">
+      <div class="sample-prompts flex flex-row gap-8 justify-center items-stretch mb-8">
         @for(prompt of samplePrompts; track prompt) {
         <div
-          class="p-10 bg-muted rounded-md flex items-center justify-center cursor-pointer border hover:border-red"
+          class="sample-card bg-white/80 rounded-2xl shadow-lg p-8 flex flex-col justify-between cursor-pointer border border-transparent hover:border-indigo-400 transition-all w-[340px] min-h-[180px]"
           (click)="chatService.userMessage.set(prompt)"
         >
-          <p
-            class="display-box max-w-200 line-clamp-4 box-orient-vertical overflow-hidden text-ellipsis"
-          >
+          <p class="text-gray-700 text-base leading-relaxed line-clamp-5">
             {{ prompt }}
           </p>
         </div>
-
         }
       </div>
       }
@@ -147,7 +144,10 @@
             [(ngModel)]="chatService.userMessage"
             (keyup.enter)="chatService.sendMessage($event)"
           ></textarea>
-          <hlm-hint class="mr-1 mt-10">AI-generated content may be incorrect</hlm-hint>
+          <hlm-hint class="mr-1 mt-10"></hlm-hint>
+  <footer class="w-full flex justify-center mt-4 mb-2">
+    <span class="text-xs text-gray-500 italic bg-white/70 rounded px-3 py-1 shadow-sm">AI-generated content may be incorrect</span>
+  </footer>
         </hlm-form-field>
         <button
           hlmBtn

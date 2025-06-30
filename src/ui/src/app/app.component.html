@@ -1,7 +1,23 @@
-<main class="flex items-center justify-center min-h-screen bg-background p-4">
-  <div class="fixed top-4 right-4">
+
+<main class="min-h-screen flex flex-col items-center justify-center gradient-bg p-0 relative">
+  <div class="fixed top-4 right-4 z-20">
     <app-theme-toggle></app-theme-toggle>
   </div>
-  <app-chat-conversation></app-chat-conversation>
+  <header class="w-full flex flex-col items-center justify-center pt-12 pb-6 z-10">
+    <div class="flex flex-col items-center">
+      <div class="mb-2">
+        <!-- Logo: use a placeholder SVG for now -->
+        <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="32" cy="32" r="32" fill="#E0E7FF"/>
+          <path d="M32 16C24.268 16 18 22.268 18 30C18 39.5 32 56 32 56C32 56 46 39.5 46 30C46 22.268 39.732 16 32 16ZM32 36C28.686 36 26 33.314 26 30C26 26.686 28.686 24 32 24C35.314 24 38 26.686 38 30C38 33.314 35.314 36 32 36Z" fill="#6366F1"/>
+        </svg>
+      </div>
+      <h1 class="text-4xl font-extrabold text-gray-800 tracking-tight">WanderWise</h1>
+      <p class="text-lg text-gray-600 font-medium mt-1">Your Smart Travel Companion</p>
+    </div>
+  </header>
+  <section class="flex-1 flex flex-col items-center justify-center w-full z-10">
+    <app-chat-conversation></app-chat-conversation>
+  </section>
 </main>
 <router-outlet />
