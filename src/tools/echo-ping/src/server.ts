@@ -35,7 +35,7 @@ export class EchoMCPServer {
   }
 
   async handlePostRequest(req: Request, res: Response) {
-    console.log(`POST ${req.originalUrl} (${req.ip}) - payload:`, req.body);
+    console.log('POST %s (%s) - payload:', req.originalUrl, req.ip, req.body);
     try {
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
