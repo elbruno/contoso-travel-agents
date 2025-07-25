@@ -330,6 +330,12 @@ __pycache__/
 *.pyc
 **/*.egg-info/
 
+# Python virtual environments
+venv/
+env/
+.venv/
+.env/
+
 # Cake - Uncomment if you are using it
 # tools/**
 # !tools/packages.config
