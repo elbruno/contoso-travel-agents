@@ -1,4 +1,9 @@
-#! /bin/bash
+#!/bin/bash
+
+# API Setup Script
+# This script installs dependencies for the API service and sets up Docker components.
+# Line ending handling: This file uses Unix line endings (LF) enforced by .gitattributes
+# to prevent Windows CRLF issues that cause '$'\r': command not found' errors.
 
 # Install dependencies for the API service
 printf ">> Installing dependencies for the API service...\n"
@@ -16,7 +21,17 @@ fi
 
 # Enable Docker Desktop Model Runner
 printf ">> Enabling Docker Desktop Model Runner...\n"
-docker desktop enable model-runner --tcp 12434
+if command -v docker >/dev/null 2>&1; then
+    docker desktop enable model-runner --tcp 12434 || printf "Warning: Could not enable Docker Desktop Model Runner. This might be expected if Docker Desktop is not available.\n"
+else
+    printf "Warning: Docker not found. Skipping Docker Desktop Model Runner setup.\n"
+fi
 
 printf ">> Pulling Docker model...\n"
-docker model pull ai/phi4:14B-Q4_0
+if command -v docker >/dev/null 2>&1; then
+    docker model pull ai/phi4:14B-Q4_0 || printf "Warning: Could not pull Docker model. This might be expected if Docker Desktop Model Runner is not available.\n"
+else
+    printf "Warning: Docker not found. Skipping Docker model pull.\n"
+fi
+
+printf ">> API setup completed successfully.\n"

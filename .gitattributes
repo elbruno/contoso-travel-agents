@@ -1,0 +1,9 @@
+# Ensure shell scripts always use Unix line endings (LF) to prevent Windows CRLF issues
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Ensure PowerShell scripts use platform-appropriate line endings
+*.ps1 text
+
+# Default text file handling
+* text=auto

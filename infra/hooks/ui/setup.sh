@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/bin/bash
 
 # Install dependencies for the UI service
 printf ">> Installing dependencies for the UI service...\n"
