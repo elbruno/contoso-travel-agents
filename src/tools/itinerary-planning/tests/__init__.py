@@ -1,0 +1,1 @@
+# Test package for itinerary planning MCP server
