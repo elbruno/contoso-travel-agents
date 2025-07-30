@@ -53,6 +53,16 @@
       },
       "type": "sse",
       "url": "https://customer-query.jollypebble-b7767743.swedencentral.azurecontainerapps.io/sse"
+    },
+    "hf-mcp-server": {
+      "url": "https://huggingface.co/mcp",
+      "headers": {
+        "Authorization": "Bearer <YOUR_HF_TOKEN>"
+      }
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/"
     }
   }
 }

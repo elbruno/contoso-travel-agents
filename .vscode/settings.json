@@ -1,0 +1,10 @@
+{
+    "chat.mcp.serverSampling": {
+        "contoso-travel-agents/.vscode/mcp.json: tool-customer-query-REMOTE": {
+            "allowedModels": [
+                "copilot/gpt-4.1",
+                "copilot/claude-sonnet-4"
+            ]
+        }
+    }
+}
