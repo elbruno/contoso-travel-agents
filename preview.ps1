@@ -68,7 +68,7 @@ if (!(Test-Path .git) -or !(Test-Path preview.ps1)) {
 # Step 1: Setup API dependencies
 if (Test-Path ./infra/hooks/api/setup.ps1) {
     Write-Host ("{0}>> Running API setup...{1}" -f $CYAN, $NC)
-    bash ./infra/hooks/api/setup.sh
+    & ./infra/hooks/api/setup.ps1
     $api_status = $LASTEXITCODE
     if ($api_status -ne 0) {
         Write-Host ("{0}{1}API setup failed with exit code $api_status. Exiting.{2}" -f $RED, $BOLD, $NC)
@@ -102,7 +102,7 @@ Write-Host ("{0}{1}.env file created in src/api/.env.{2}" -f $GREEN, $BOLD, $NC)
 # Step 2: Setup UI dependencies
 if (Test-Path ./infra/hooks/ui/setup.ps1) {
     Write-Host ("{0}>> Running UI setup...{1}" -f $CYAN, $NC)
-    bash ./infra/hooks/ui/setup.sh
+    & ./infra/hooks/ui/setup.ps1
     $ui_status = $LASTEXITCODE
     if ($ui_status -ne 0) {
         Write-Host ("{0}{1}UI setup failed with exit code $ui_status. Exiting.{2}" -f $RED, $BOLD, $NC)
@@ -122,7 +122,7 @@ Write-Host ("{0}{1}.env file created in src/ui/.env.{2}" -f $GREEN, $BOLD, $NC)
 # Step 3: Setup MCP tools (env, dependencies, docker build)
 if (Test-Path ./infra/hooks/mcp/setup.ps1) {
     Write-Host ("{0}>> Running MCP tools setup...{1}" -f $CYAN, $NC)
-    bash ./infra/hooks/mcp/setup.sh
+    & ./infra/hooks/mcp/setup.ps1
     $mcp_status = $LASTEXITCODE
     if ($mcp_status -ne 0) {
         Write-Host ("{0}{1}MCP tools setup failed with exit code $mcp_status. Exiting.{2}" -f $RED, $BOLD, $NC)
