@@ -1,8 +1,8 @@
 # Ensure shell scripts always use LF line endings regardless of platform
 *.sh text eol=lf
 
-# Ensure PowerShell scripts use CRLF on Windows and LF on Unix
-*.ps1 text
+# Ensure PowerShell scripts use CRLF line endings for Windows compatibility
+*.ps1 text eol=crlf
 
 # Ensure batch files use CRLF line endings
 *.bat text eol=crlf
