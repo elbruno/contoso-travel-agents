@@ -74,3 +74,26 @@ Before you submit your Pull Request (PR) consider the following guidelines:
     ```
 
 That's it! Thank you for your contribution!
+
+## Development Environment Setup
+
+### Line Ending Configuration
+
+This repository contains shell scripts that must use Unix line endings (LF) to function correctly across platforms. A `.gitattributes` file is configured to ensure proper line endings, but if you encounter issues with shell scripts failing on Windows with errors like:
+
+```
+./infra/hooks/api/setup.sh: line 2: $'\r': command not found
+```
+
+This indicates CRLF line endings. The `.gitattributes` file should automatically handle this, but you can also manually configure Git:
+
+```bash
+git config core.autocrlf false
+```
+
+For existing repositories, you may need to refresh the line endings:
+
+```bash
+git rm --cached -r .
+git reset --hard
+```
