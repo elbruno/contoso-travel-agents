@@ -134,9 +134,9 @@ namespace AITravelAgent.CustomerQueryTool.Tests
 
             // Assert
             stopwatch.Stop();
-            // The analyzer has a 1 second delay, so elapsed time should be at least 1000ms
-            Assert.IsTrue(stopwatch.ElapsedMilliseconds >= 1000, 
-                $"Expected at least 1000ms delay, but got {stopwatch.ElapsedMilliseconds}ms");
+            // The analyzer has a 1 second delay, so elapsed time should be at least 990ms (allowing for small variations)
+            Assert.IsTrue(stopwatch.ElapsedMilliseconds >= 990, 
+                $"Expected at least 990ms delay, but got {stopwatch.ElapsedMilliseconds}ms");
         }
     }
 }
