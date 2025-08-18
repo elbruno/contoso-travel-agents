@@ -18,6 +18,54 @@ $NC     = "`e[0m" # No Color
 $CHECK = [char]0x2714  # ✔
 $CROSS = [char]0x274C  # ❌
 
+# Helper function to invoke setup hooks with platform detection
+function Invoke-SetupHook {
+    param(
+        [string]$HookPath,
+        [string]$HookName
+    )
+    
+    $ps1Script = "$HookPath/setup.ps1"
+    $shScript = "$HookPath/setup.sh"
+    
+    # Prefer PowerShell scripts on Windows, bash scripts elsewhere
+    if ($IsWindows -or $env:OS -eq 'Windows_NT') {
+        # On Windows, prefer .ps1 first
+        if (Test-Path $ps1Script) {
+            Write-Host ("{0}Running {1} setup using PowerShell script...{2}" -f $CYAN, $HookName, $NC)
+            & pwsh -File $ps1Script
+            return $LASTEXITCODE
+        } elseif (Test-Path $shScript) {
+            # Check if bash is available
+            if (Get-Command bash -ErrorAction SilentlyContinue) {
+                Write-Host ("{0}Running {1} setup using bash script (PowerShell script not found)...{2}" -f $CYAN, $HookName, $NC)
+                bash $shScript
+                return $LASTEXITCODE
+            } else {
+                Write-Host ("{0}{1}Neither PowerShell script nor bash found for {2} setup. Skipping.{3}" -f $RED, $CROSS, $HookName, $NC)
+                return 1
+            }
+        } else {
+            Write-Host ("{0}{1} setup script not found, skipping.{2}" -f $YELLOW, $HookName, $NC)
+            return 0
+        }
+    } else {
+        # On non-Windows, prefer .sh first
+        if (Test-Path $shScript) {
+            Write-Host ("{0}Running {1} setup using bash script...{2}" -f $CYAN, $HookName, $NC)
+            bash $shScript
+            return $LASTEXITCODE
+        } elseif (Test-Path $ps1Script) {
+            Write-Host ("{0}Running {1} setup using PowerShell script (bash script not found)...{2}" -f $CYAN, $HookName, $NC)
+            & pwsh -File $ps1Script
+            return $LASTEXITCODE
+        } else {
+            Write-Host ("{0}{1} setup script not found, skipping.{2}" -f $YELLOW, $HookName, $NC)
+            return 0
+        }
+    }
+}
+
 # Step 0: Prerequisite checks
 Write-Host ("{0}{1}Checking prerequisites...{2}" -f $BOLD, $BLUE, $NC)
 $MISSING = 0
@@ -66,16 +114,10 @@ if (!(Test-Path .git) -or !(Test-Path preview.ps1)) {
 }
 
 # Step 1: Setup API dependencies
-if (Test-Path ./infra/hooks/api/setup.ps1) {
-    Write-Host ("{0}>> Running API setup...{1}" -f $CYAN, $NC)
-    bash ./infra/hooks/api/setup.sh
-    $api_status = $LASTEXITCODE
-    if ($api_status -ne 0) {
-        Write-Host ("{0}{1}API setup failed with exit code $api_status. Exiting.{2}" -f $RED, $BOLD, $NC)
-        exit $api_status
-    }
-} else {
-    Write-Host ("{0}API setup script not found, skipping.{1}" -f $YELLOW, $NC)
+$api_status = Invoke-SetupHook -HookPath "./infra/hooks/api" -HookName "API"
+if ($api_status -ne 0) {
+    Write-Host ("{0}{1}API setup failed with exit code $api_status. Exiting.{2}" -f $RED, $BOLD, $NC)
+    exit $api_status
 }
 
 # Step 1.5: Create .env file for the user
@@ -100,16 +142,10 @@ Set-Content -Path ./src/api/.env -Value $envContent -Encoding UTF8
 Write-Host ("{0}{1}.env file created in src/api/.env.{2}" -f $GREEN, $BOLD, $NC)
 
 # Step 2: Setup UI dependencies
-if (Test-Path ./infra/hooks/ui/setup.ps1) {
-    Write-Host ("{0}>> Running UI setup...{1}" -f $CYAN, $NC)
-    bash ./infra/hooks/ui/setup.sh
-    $ui_status = $LASTEXITCODE
-    if ($ui_status -ne 0) {
-        Write-Host ("{0}{1}UI setup failed with exit code $ui_status. Exiting.{2}" -f $RED, $BOLD, $NC)
-        exit $ui_status
-    }
-} else {
-    Write-Host ("{0}UI setup script not found, skipping.{1}" -f $YELLOW, $NC)
+$ui_status = Invoke-SetupHook -HookPath "./infra/hooks/ui" -HookName "UI"
+if ($ui_status -ne 0) {
+    Write-Host ("{0}{1}UI setup failed with exit code $ui_status. Exiting.{2}" -f $RED, $BOLD, $NC)
+    exit $ui_status
 }
 
 # Step 2.5: Create .env file for the UI
@@ -120,16 +156,10 @@ Set-Content -Path ./src/ui/.env -Value $uiEnvContent -Encoding UTF8
 Write-Host ("{0}{1}.env file created in src/ui/.env.{2}" -f $GREEN, $BOLD, $NC)
 
 # Step 3: Setup MCP tools (env, dependencies, docker build)
-if (Test-Path ./infra/hooks/mcp/setup.ps1) {
-    Write-Host ("{0}>> Running MCP tools setup...{1}" -f $CYAN, $NC)
-    bash ./infra/hooks/mcp/setup.sh
-    $mcp_status = $LASTEXITCODE
-    if ($mcp_status -ne 0) {
-        Write-Host ("{0}{1}MCP tools setup failed with exit code $mcp_status. Exiting.{2}" -f $RED, $BOLD, $NC)
-        exit $mcp_status
-    }
-} else {
-    Write-Host ("{0}MCP tools setup script not found, skipping.{1}" -f $YELLOW, $NC)
+$mcp_status = Invoke-SetupHook -HookPath "./infra/hooks/mcp" -HookName "MCP tools"
+if ($mcp_status -ne 0) {
+    Write-Host ("{0}{1}MCP tools setup failed with exit code $mcp_status. Exiting.{2}" -f $RED, $BOLD, $NC)
+    exit $mcp_status
 }
 
 # Step 4: Print next steps
