@@ -33,13 +33,13 @@ function Invoke-SetupHook {
         # On Windows, prefer .ps1 first
         if (Test-Path $ps1Script) {
             Write-Host ("{0}Running {1} setup using PowerShell script...{2}" -f $CYAN, $HookName, $NC)
-            & pwsh -File $ps1Script
+            & pwsh -File $ps1Script | Out-Host
             return $LASTEXITCODE
         } elseif (Test-Path $shScript) {
             # Check if bash is available
             if (Get-Command bash -ErrorAction SilentlyContinue) {
                 Write-Host ("{0}Running {1} setup using bash script (PowerShell script not found)...{2}" -f $CYAN, $HookName, $NC)
-                bash $shScript
+                bash $shScript | Out-Host
                 return $LASTEXITCODE
             } else {
                 Write-Host ("{0}{1}Neither PowerShell script nor bash found for {2} setup. Skipping.{3}" -f $RED, $CROSS, $HookName, $NC)
@@ -53,11 +53,11 @@ function Invoke-SetupHook {
         # On non-Windows, prefer .sh first
         if (Test-Path $shScript) {
             Write-Host ("{0}Running {1} setup using bash script...{2}" -f $CYAN, $HookName, $NC)
-            bash $shScript
+            bash $shScript | Out-Host
             return $LASTEXITCODE
         } elseif (Test-Path $ps1Script) {
             Write-Host ("{0}Running {1} setup using PowerShell script (bash script not found)...{2}" -f $CYAN, $HookName, $NC)
-            & pwsh -File $ps1Script
+            & pwsh -File $ps1Script | Out-Host
             return $LASTEXITCODE
         } else {
             Write-Host ("{0}{1} setup script not found, skipping.{2}" -f $YELLOW, $HookName, $NC)
