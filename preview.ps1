@@ -18,6 +18,38 @@ $NC     = "`e[0m" # No Color
 $CHECK = [char]0x2714  # ✔
 $CROSS = [char]0x274C  # ❌
 
+# Helper function to invoke setup hooks, preferring PowerShell on Windows
+function Invoke-SetupHook {
+    param(
+        [string]$HookPath,
+        [string]$Description
+    )
+    
+    $psScript = Join-Path $HookPath "setup.ps1"
+    $shScript = Join-Path $HookPath "setup.sh"
+    
+    if (Test-Path $psScript) {
+        Write-Host ("{0}Executing PowerShell setup: {1}{2}" -f $CYAN, $psScript, $NC)
+        & pwsh -File $psScript | Out-Host
+        return $LASTEXITCODE
+    }
+    elseif (Test-Path $shScript) {
+        if (Get-Command bash -ErrorAction SilentlyContinue) {
+            Write-Host ("{0}Executing bash setup: {1}{2}" -f $CYAN, $shScript, $NC)
+            bash $shScript | Out-Host
+            return $LASTEXITCODE
+        }
+        else {
+            Write-Host ("{0}{1}bash is not available and no PowerShell script found for {2}. Skipping setup.{3}" -f $RED, $CROSS, $Description, $NC)
+            return 1
+        }
+    }
+    else {
+        Write-Host ("{0}{1} setup script not found, skipping.{2}" -f $YELLOW, $Description, $NC)
+        return 0
+    }
+}
+
 # Step 0: Prerequisite checks
 Write-Host ("{0}{1}Checking prerequisites...{2}" -f $BOLD, $BLUE, $NC)
 $MISSING = 0
@@ -66,16 +98,11 @@ if (!(Test-Path .git) -or !(Test-Path preview.ps1)) {
 }
 
 # Step 1: Setup API dependencies
-if (Test-Path ./infra/hooks/api/setup.ps1) {
-    Write-Host ("{0}>> Running API setup...{1}" -f $CYAN, $NC)
-    bash ./infra/hooks/api/setup.sh
-    $api_status = $LASTEXITCODE
-    if ($api_status -ne 0) {
-        Write-Host ("{0}{1}API setup failed with exit code $api_status. Exiting.{2}" -f $RED, $BOLD, $NC)
-        exit $api_status
-    }
-} else {
-    Write-Host ("{0}API setup script not found, skipping.{1}" -f $YELLOW, $NC)
+Write-Host ("{0}>> Running API setup...{1}" -f $CYAN, $NC)
+$api_status = Invoke-SetupHook -HookPath "./infra/hooks/api" -Description "API"
+if ($api_status -ne 0) {
+    Write-Host ("{0}{1}API setup failed with exit code $api_status. Exiting.{2}" -f $RED, $BOLD, $NC)
+    exit $api_status
 }
 
 # Step 1.5: Create .env file for the user
@@ -100,16 +127,11 @@ Set-Content -Path ./src/api/.env -Value $envContent -Encoding UTF8
 Write-Host ("{0}{1}.env file created in src/api/.env.{2}" -f $GREEN, $BOLD, $NC)
 
 # Step 2: Setup UI dependencies
-if (Test-Path ./infra/hooks/ui/setup.ps1) {
-    Write-Host ("{0}>> Running UI setup...{1}" -f $CYAN, $NC)
-    bash ./infra/hooks/ui/setup.sh
-    $ui_status = $LASTEXITCODE
-    if ($ui_status -ne 0) {
-        Write-Host ("{0}{1}UI setup failed with exit code $ui_status. Exiting.{2}" -f $RED, $BOLD, $NC)
-        exit $ui_status
-    }
-} else {
-    Write-Host ("{0}UI setup script not found, skipping.{1}" -f $YELLOW, $NC)
+Write-Host ("{0}>> Running UI setup...{1}" -f $CYAN, $NC)
+$ui_status = Invoke-SetupHook -HookPath "./infra/hooks/ui" -Description "UI"
+if ($ui_status -ne 0) {
+    Write-Host ("{0}{1}UI setup failed with exit code $ui_status. Exiting.{2}" -f $RED, $BOLD, $NC)
+    exit $ui_status
 }
 
 # Step 2.5: Create .env file for the UI
@@ -120,16 +142,11 @@ Set-Content -Path ./src/ui/.env -Value $uiEnvContent -Encoding UTF8
 Write-Host ("{0}{1}.env file created in src/ui/.env.{2}" -f $GREEN, $BOLD, $NC)
 
 # Step 3: Setup MCP tools (env, dependencies, docker build)
-if (Test-Path ./infra/hooks/mcp/setup.ps1) {
-    Write-Host ("{0}>> Running MCP tools setup...{1}" -f $CYAN, $NC)
-    bash ./infra/hooks/mcp/setup.sh
-    $mcp_status = $LASTEXITCODE
-    if ($mcp_status -ne 0) {
-        Write-Host ("{0}{1}MCP tools setup failed with exit code $mcp_status. Exiting.{2}" -f $RED, $BOLD, $NC)
-        exit $mcp_status
-    }
-} else {
-    Write-Host ("{0}MCP tools setup script not found, skipping.{1}" -f $YELLOW, $NC)
+Write-Host ("{0}>> Running MCP tools setup...{1}" -f $CYAN, $NC)
+$mcp_status = Invoke-SetupHook -HookPath "./infra/hooks/mcp" -Description "MCP tools"
+if ($mcp_status -ne 0) {
+    Write-Host ("{0}{1}MCP tools setup failed with exit code $mcp_status. Exiting.{2}" -f $RED, $BOLD, $NC)
+    exit $mcp_status
 }
 
 # Step 4: Print next steps
