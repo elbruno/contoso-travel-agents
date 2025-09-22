@@ -2,6 +2,9 @@
 # This script builds, configures, and prepares the environment for running the AI Travel Agents applications on Windows.
 # This script can be run directly via:
 #   irm https://aka.ms/azure-ai-travel-agents-preview-win | pwsh
+#
+# For ExecutionPolicy restrictions, run with:
+#   pwsh -ExecutionPolicy Bypass -File preview.ps1
 
 $ErrorActionPreference = 'Stop'
 
@@ -18,36 +21,113 @@ $NC     = "`e[0m" # No Color
 $CHECK = [char]0x2714  # ✔
 $CROSS = [char]0x274C  # ❌
 
+# Function to test and report command availability
+function Test-And-ReportCommand {
+    param(
+        [string]$CommandName,
+        [string]$DisplayName,
+        [string]$InstallUrl,
+        [string]$VersionFlag = '--version'
+    )
+    
+    if (Get-Command $CommandName -ErrorAction SilentlyContinue) {
+        try {
+            $version = & $CommandName $VersionFlag 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host ("{0}{1} {2} version: {3}{4}" -f $GREEN, $CHECK, $DisplayName, $version, $NC)
+            } else {
+                Write-Host ("{0}{1} {2} found{3}" -f $GREEN, $CHECK, $DisplayName, $NC)
+            }
+        } catch {
+            Write-Host ("{0}{1} {2} found{3}" -f $GREEN, $CHECK, $DisplayName, $NC)
+        }
+        return $true
+    } else {
+        Write-Host ("{0}{1} {2} is not installed. Please install {2} ({3}){4}" -f $RED, $CROSS, $DisplayName, $InstallUrl, $NC)
+        return $false
+    }
+}
+
+# Function to invoke setup scripts with PowerShell preference
+function Invoke-Setup {
+    param(
+        [string]$Component,
+        [string]$ComponentDisplayName
+    )
+    
+    $psScript = "./infra/hooks/$Component/setup.ps1"
+    $shScript = "./infra/hooks/$Component/setup.sh"
+    
+    if (Test-Path $psScript) {
+        Write-Host ("{0}>> Running {1} setup (PowerShell)...{2}" -f $CYAN, $ComponentDisplayName, $NC)
+        try {
+            & $psScript
+            $exitCode = $LASTEXITCODE
+            if ($exitCode -ne 0) {
+                if ($Component -eq "mcp") {
+                    Write-Host ("{0}{1}{2} setup had issues (exit code $exitCode), but this won't stop the setup process.{3}" -f $YELLOW, $BOLD, $ComponentDisplayName, $NC)
+                } else {
+                    Write-Host ("{0}{1}{2} setup failed with exit code $exitCode. Exiting.{3}" -f $RED, $BOLD, $ComponentDisplayName, $NC)
+                    exit $exitCode
+                }
+            }
+        } catch {
+            if ($Component -eq "mcp") {
+                Write-Host ("{0}{1}{2} setup had issues: {3}. This won't stop the setup process.{4}" -f $YELLOW, $BOLD, $ComponentDisplayName, $_.Exception.Message, $NC)
+            } else {
+                Write-Host ("{0}{1}{2} setup failed: {3}. Exiting.{4}" -f $RED, $BOLD, $ComponentDisplayName, $_.Exception.Message, $NC)
+                exit 1
+            }
+        }
+    } elseif (Test-Path $shScript) {
+        # Check if bash is available for .sh script
+        if (Get-Command bash -ErrorAction SilentlyContinue) {
+            Write-Host ("{0}>> Running {1} setup (bash)...{2}" -f $CYAN, $ComponentDisplayName, $NC)
+            bash $shScript
+            $exitCode = $LASTEXITCODE
+            if ($exitCode -ne 0) {
+                if ($Component -eq "mcp") {
+                    Write-Host ("{0}{1}{2} setup had issues (exit code $exitCode), but this won't stop the setup process.{3}" -f $YELLOW, $BOLD, $ComponentDisplayName, $NC)
+                } else {
+                    Write-Host ("{0}{1}{2} setup failed with exit code $exitCode. Exiting.{3}" -f $RED, $BOLD, $ComponentDisplayName, $NC)
+                    exit $exitCode
+                }
+            }
+        } else {
+            Write-Host ("{0}{1}Error: {2} setup requires bash, but bash is not available.{3}" -f $RED, $BOLD, $ComponentDisplayName, $NC)
+            Write-Host ("{0}Please install Git Bash, WSL, or use a PowerShell setup script.{1}" -f $YELLOW, $NC)
+            exit 1
+        }
+    } else {
+        Write-Host ("{0}{1} setup script not found, skipping.{2}" -f $YELLOW, $ComponentDisplayName, $NC)
+    }
+}
+
 # Step 0: Prerequisite checks
 Write-Host ("{0}{1}Checking prerequisites...{2}" -f $BOLD, $BLUE, $NC)
 $MISSING = 0
 
-if (Get-Command node -ErrorAction SilentlyContinue) {
-    $NODE_VERSION = node --version
-    Write-Host ("{0}{1} Node.js version: {2}{3}" -f $GREEN, $CHECK, $NODE_VERSION, $NC)
-} else {
-    Write-Host ("{0}{1} Node.js is not installed. Please install Node.js (https://nodejs.org/){2}" -f $RED, $CROSS, $NC)
+# Check git first since it's used for cloning
+if (!(Test-And-ReportCommand "git" "Git" "https://git-scm.com/")) {
     $MISSING = 1
 }
 
-if (Get-Command npm -ErrorAction SilentlyContinue) {
-    $NPM_VERSION = npm --version
-    Write-Host ("{0}{1} npm version: {2}{3}" -f $GREEN, $CHECK, $NPM_VERSION, $NC)
-} else {
-    Write-Host ("{0}{1} npm is not installed. Please install npm (https://www.npmjs.com/){2}" -f $RED, $CROSS, $NC)
+if (!(Test-And-ReportCommand "node" "Node.js" "https://nodejs.org/")) {
     $MISSING = 1
 }
 
-if (Get-Command docker -ErrorAction SilentlyContinue) {
-    $DOCKER_VERSION = docker --version
-    Write-Host ("{0}{1} Docker version: {2}{3}" -f $GREEN, $CHECK, $DOCKER_VERSION, $NC)
-} else {
-    Write-Host ("{0}{1} Docker is not installed. Please install Docker Desktop (https://www.docker.com/products/docker-desktop/){2}" -f $RED, $CROSS, $NC)
+if (!(Test-And-ReportCommand "npm" "npm" "https://www.npmjs.com/")) {
+    $MISSING = 1
+}
+
+if (!(Test-And-ReportCommand "docker" "Docker" "https://www.docker.com/products/docker-desktop/")) {
     $MISSING = 1
 }
 
 if ($MISSING -eq 1) {
     Write-Host ("{0}{1}One or more prerequisites are missing. Please install them and re-run this script.{2}" -f $RED, $BOLD, $NC)
+    Write-Host ("{0}If you encounter ExecutionPolicy restrictions, run with:{1}" -f $YELLOW, $NC)
+    Write-Host ("  {0}pwsh -ExecutionPolicy Bypass -File preview.ps1{1}" -f $BOLD, $NC)
     exit 1
 } else {
     Write-Host ("{0}All prerequisites are installed.{1}" -f $GREEN, $NC)
@@ -66,17 +146,7 @@ if (!(Test-Path .git) -or !(Test-Path preview.ps1)) {
 }
 
 # Step 1: Setup API dependencies
-if (Test-Path ./infra/hooks/api/setup.ps1) {
-    Write-Host ("{0}>> Running API setup...{1}" -f $CYAN, $NC)
-    bash ./infra/hooks/api/setup.sh
-    $api_status = $LASTEXITCODE
-    if ($api_status -ne 0) {
-        Write-Host ("{0}{1}API setup failed with exit code $api_status. Exiting.{2}" -f $RED, $BOLD, $NC)
-        exit $api_status
-    }
-} else {
-    Write-Host ("{0}API setup script not found, skipping.{1}" -f $YELLOW, $NC)
-}
+Invoke-Setup "api" "API"
 
 # Step 1.5: Create .env file for the user
 if (!(Test-Path -Path ./src/api)) {
@@ -100,17 +170,7 @@ Set-Content -Path ./src/api/.env -Value $envContent -Encoding UTF8
 Write-Host ("{0}{1}.env file created in src/api/.env.{2}" -f $GREEN, $BOLD, $NC)
 
 # Step 2: Setup UI dependencies
-if (Test-Path ./infra/hooks/ui/setup.ps1) {
-    Write-Host ("{0}>> Running UI setup...{1}" -f $CYAN, $NC)
-    bash ./infra/hooks/ui/setup.sh
-    $ui_status = $LASTEXITCODE
-    if ($ui_status -ne 0) {
-        Write-Host ("{0}{1}UI setup failed with exit code $ui_status. Exiting.{2}" -f $RED, $BOLD, $NC)
-        exit $ui_status
-    }
-} else {
-    Write-Host ("{0}UI setup script not found, skipping.{1}" -f $YELLOW, $NC)
-}
+Invoke-Setup "ui" "UI"
 
 # Step 2.5: Create .env file for the UI
 $uiEnvContent = @"
@@ -120,17 +180,7 @@ Set-Content -Path ./src/ui/.env -Value $uiEnvContent -Encoding UTF8
 Write-Host ("{0}{1}.env file created in src/ui/.env.{2}" -f $GREEN, $BOLD, $NC)
 
 # Step 3: Setup MCP tools (env, dependencies, docker build)
-if (Test-Path ./infra/hooks/mcp/setup.ps1) {
-    Write-Host ("{0}>> Running MCP tools setup...{1}" -f $CYAN, $NC)
-    bash ./infra/hooks/mcp/setup.sh
-    $mcp_status = $LASTEXITCODE
-    if ($mcp_status -ne 0) {
-        Write-Host ("{0}{1}MCP tools setup failed with exit code $mcp_status. Exiting.{2}" -f $RED, $BOLD, $NC)
-        exit $mcp_status
-    }
-} else {
-    Write-Host ("{0}MCP tools setup script not found, skipping.{1}" -f $YELLOW, $NC)
-}
+Invoke-Setup "mcp" "MCP tools"
 
 # Step 4: Print next steps
 Write-Host ("\n{0}{1}========================================{2}" -f $GREEN, $BOLD, $NC)
@@ -140,3 +190,5 @@ Write-Host ("  {0}npm start --prefix ./src/api{1}" -f $BOLD, $NC)
 Write-Host ("{0}To run the UI service, open a new terminal and use:{1}" -f $BLUE, $NC)
 Write-Host ("  {0}npm start --prefix ./src/ui{1}" -f $BOLD, $NC)
 Write-Host ("{0}{1}========================================{2}" -f $GREEN, $BOLD, $NC)
+Write-Host ("{0}Tip: If you encounter ExecutionPolicy restrictions in the future, run:{1}" -f $YELLOW, $NC)
+Write-Host ("  {0}pwsh -ExecutionPolicy Bypass -File preview.ps1{1}" -f $BOLD, $NC)
