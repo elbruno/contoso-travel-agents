@@ -2,6 +2,9 @@
 # This script builds, configures, and prepares the environment for running the AI Travel Agents applications on Windows.
 # This script can be run directly via:
 #   irm https://aka.ms/azure-ai-travel-agents-preview-win | pwsh
+#
+# If you encounter ExecutionPolicy restrictions, run:
+#   pwsh -ExecutionPolicy Bypass -File preview.ps1
 
 $ErrorActionPreference = 'Stop'
 
@@ -18,36 +21,97 @@ $NC     = "`e[0m" # No Color
 $CHECK = [char]0x2714  # ✔
 $CROSS = [char]0x274C  # ❌
 
+# Function to test and report command availability
+function Test-And-ReportCommand {
+    param(
+        [string]$CommandName,
+        [string]$DisplayName,
+        [string]$InstallUrl,
+        [switch]$GetVersion
+    )
+    
+    if (Get-Command $CommandName -ErrorAction SilentlyContinue) {
+        if ($GetVersion) {
+            $version = & $CommandName --version
+            Write-Host ("{0}{1} {2} version: {3}{4}" -f $GREEN, $CHECK, $DisplayName, $version, $NC)
+        } else {
+            Write-Host ("{0}{1} {2} is installed{3}" -f $GREEN, $CHECK, $DisplayName, $NC)
+        }
+        return $true
+    } else {
+        Write-Host ("{0}{1} {2} is not installed. Please install {2} ({3}){4}" -f $RED, $CROSS, $DisplayName, $InstallUrl, $NC)
+        return $false
+    }
+}
+
+# Function to invoke setup scripts with PowerShell preference
+function Invoke-Setup {
+    param(
+        [string]$Component,
+        [string]$ComponentPath
+    )
+    
+    $psScript = Join-Path $ComponentPath "setup.ps1"
+    $shScript = Join-Path $ComponentPath "setup.sh"
+    
+    if (Test-Path $psScript) {
+        Write-Host ("{0}>> Running {1} setup (PowerShell)...{2}" -f $CYAN, $Component, $NC)
+        try {
+            & $psScript
+            $exitCode = $LASTEXITCODE
+            if ($null -eq $exitCode) { $exitCode = 0 }
+            return $exitCode
+        } catch {
+            Write-Host ("{0}Error running {1} setup: {2}{3}" -f $RED, $Component, $_.Exception.Message, $NC)
+            return 1
+        }
+    } elseif (Test-Path $shScript) {
+        if (Get-Command bash -ErrorAction SilentlyContinue) {
+            Write-Host ("{0}>> Running {1} setup (bash)...{2}" -f $CYAN, $Component, $NC)
+            bash $shScript
+            $exitCode = $LASTEXITCODE
+            if ($null -eq $exitCode) { $exitCode = 0 }
+            return $exitCode
+        } else {
+            Write-Host ("{0}{1}bash is not available and no PowerShell setup script found for {2}.{3}" -f $RED, $BOLD, $Component, $NC)
+            Write-Host ("{0}Please install Git Bash or Windows Subsystem for Linux (WSL) to run .sh scripts.{1}" -f $YELLOW, $NC)
+            Write-Host ("{0}Alternatively, you can install Git with bash tools from: https://git-scm.com/{1}" -f $YELLOW, $NC)
+            return 1
+        }
+    } else {
+        Write-Host ("{0}{1} setup script not found, skipping.{2}" -f $YELLOW, $Component, $NC)
+        return 0
+    }
+}
+
 # Step 0: Prerequisite checks
 Write-Host ("{0}{1}Checking prerequisites...{2}" -f $BOLD, $BLUE, $NC)
 $MISSING = 0
 
-if (Get-Command node -ErrorAction SilentlyContinue) {
-    $NODE_VERSION = node --version
-    Write-Host ("{0}{1} Node.js version: {2}{3}" -f $GREEN, $CHECK, $NODE_VERSION, $NC)
-} else {
-    Write-Host ("{0}{1} Node.js is not installed. Please install Node.js (https://nodejs.org/){2}" -f $RED, $CROSS, $NC)
+# Check git first since it's needed for cloning
+if (-not (Test-And-ReportCommand -CommandName "git" -DisplayName "Git" -InstallUrl "https://git-scm.com/" -GetVersion)) {
     $MISSING = 1
 }
 
-if (Get-Command npm -ErrorAction SilentlyContinue) {
-    $NPM_VERSION = npm --version
-    Write-Host ("{0}{1} npm version: {2}{3}" -f $GREEN, $CHECK, $NPM_VERSION, $NC)
-} else {
-    Write-Host ("{0}{1} npm is not installed. Please install npm (https://www.npmjs.com/){2}" -f $RED, $CROSS, $NC)
+# Check Node.js
+if (-not (Test-And-ReportCommand -CommandName "node" -DisplayName "Node.js" -InstallUrl "https://nodejs.org/" -GetVersion)) {
     $MISSING = 1
 }
 
-if (Get-Command docker -ErrorAction SilentlyContinue) {
-    $DOCKER_VERSION = docker --version
-    Write-Host ("{0}{1} Docker version: {2}{3}" -f $GREEN, $CHECK, $DOCKER_VERSION, $NC)
-} else {
-    Write-Host ("{0}{1} Docker is not installed. Please install Docker Desktop (https://www.docker.com/products/docker-desktop/){2}" -f $RED, $CROSS, $NC)
+# Check npm
+if (-not (Test-And-ReportCommand -CommandName "npm" -DisplayName "npm" -InstallUrl "https://www.npmjs.com/" -GetVersion)) {
+    $MISSING = 1
+}
+
+# Check Docker
+if (-not (Test-And-ReportCommand -CommandName "docker" -DisplayName "Docker" -InstallUrl "https://www.docker.com/products/docker-desktop/" -GetVersion)) {
     $MISSING = 1
 }
 
 if ($MISSING -eq 1) {
     Write-Host ("{0}{1}One or more prerequisites are missing. Please install them and re-run this script.{2}" -f $RED, $BOLD, $NC)
+    Write-Host ("{0}If you encounter ExecutionPolicy restrictions, run:{1}" -f $YELLOW, $NC)
+    Write-Host ("  {0}pwsh -ExecutionPolicy Bypass -File preview.ps1{1}" -f $BOLD, $NC)
     exit 1
 } else {
     Write-Host ("{0}All prerequisites are installed.{1}" -f $GREEN, $NC)
@@ -66,16 +130,10 @@ if (!(Test-Path .git) -or !(Test-Path preview.ps1)) {
 }
 
 # Step 1: Setup API dependencies
-if (Test-Path ./infra/hooks/api/setup.ps1) {
-    Write-Host ("{0}>> Running API setup...{1}" -f $CYAN, $NC)
-    bash ./infra/hooks/api/setup.sh
-    $api_status = $LASTEXITCODE
-    if ($api_status -ne 0) {
-        Write-Host ("{0}{1}API setup failed with exit code $api_status. Exiting.{2}" -f $RED, $BOLD, $NC)
-        exit $api_status
-    }
-} else {
-    Write-Host ("{0}API setup script not found, skipping.{1}" -f $YELLOW, $NC)
+$api_status = Invoke-Setup -Component "API" -ComponentPath "./infra/hooks/api"
+if ($api_status -ne 0) {
+    Write-Host ("{0}{1}API setup failed with exit code $api_status. Exiting.{2}" -f $RED, $BOLD, $NC)
+    exit $api_status
 }
 
 # Step 1.5: Create .env file for the user
@@ -100,16 +158,10 @@ Set-Content -Path ./src/api/.env -Value $envContent -Encoding UTF8
 Write-Host ("{0}{1}.env file created in src/api/.env.{2}" -f $GREEN, $BOLD, $NC)
 
 # Step 2: Setup UI dependencies
-if (Test-Path ./infra/hooks/ui/setup.ps1) {
-    Write-Host ("{0}>> Running UI setup...{1}" -f $CYAN, $NC)
-    bash ./infra/hooks/ui/setup.sh
-    $ui_status = $LASTEXITCODE
-    if ($ui_status -ne 0) {
-        Write-Host ("{0}{1}UI setup failed with exit code $ui_status. Exiting.{2}" -f $RED, $BOLD, $NC)
-        exit $ui_status
-    }
-} else {
-    Write-Host ("{0}UI setup script not found, skipping.{1}" -f $YELLOW, $NC)
+$ui_status = Invoke-Setup -Component "UI" -ComponentPath "./infra/hooks/ui"
+if ($ui_status -ne 0) {
+    Write-Host ("{0}{1}UI setup failed with exit code $ui_status. Exiting.{2}" -f $RED, $BOLD, $NC)
+    exit $ui_status
 }
 
 # Step 2.5: Create .env file for the UI
@@ -120,16 +172,10 @@ Set-Content -Path ./src/ui/.env -Value $uiEnvContent -Encoding UTF8
 Write-Host ("{0}{1}.env file created in src/ui/.env.{2}" -f $GREEN, $BOLD, $NC)
 
 # Step 3: Setup MCP tools (env, dependencies, docker build)
-if (Test-Path ./infra/hooks/mcp/setup.ps1) {
-    Write-Host ("{0}>> Running MCP tools setup...{1}" -f $CYAN, $NC)
-    bash ./infra/hooks/mcp/setup.sh
-    $mcp_status = $LASTEXITCODE
-    if ($mcp_status -ne 0) {
-        Write-Host ("{0}{1}MCP tools setup failed with exit code $mcp_status. Exiting.{2}" -f $RED, $BOLD, $NC)
-        exit $mcp_status
-    }
-} else {
-    Write-Host ("{0}MCP tools setup script not found, skipping.{1}" -f $YELLOW, $NC)
+$mcp_status = Invoke-Setup -Component "MCP tools" -ComponentPath "./infra/hooks/mcp"
+if ($mcp_status -ne 0) {
+    Write-Host ("{0}{1}MCP tools setup failed with exit code $mcp_status. Exiting.{2}" -f $RED, $BOLD, $NC)
+    exit $mcp_status
 }
 
 # Step 4: Print next steps
@@ -140,3 +186,5 @@ Write-Host ("  {0}npm start --prefix ./src/api{1}" -f $BOLD, $NC)
 Write-Host ("{0}To run the UI service, open a new terminal and use:{1}" -f $BLUE, $NC)
 Write-Host ("  {0}npm start --prefix ./src/ui{1}" -f $BOLD, $NC)
 Write-Host ("{0}{1}========================================{2}" -f $GREEN, $BOLD, $NC)
+Write-Host ("{0}Note: If you encounter ExecutionPolicy issues in the future, run:{1}" -f $YELLOW, $NC)
+Write-Host ("  {0}pwsh -ExecutionPolicy Bypass -File preview.ps1{1}" -f $BOLD, $NC)
