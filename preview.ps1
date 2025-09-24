@@ -132,7 +132,7 @@ if (!(Test-Path .git) -or !(Test-Path preview.ps1)) {
 # Step 1: Setup API dependencies
 $api_status = Invoke-Setup -Component "API" -ComponentPath "./infra/hooks/api"
 if ($api_status -ne 0) {
-    Write-Host ("{0}{1}API setup failed with exit code $api_status. Exiting.{2}" -f $RED, $BOLD, $NC)
+    Write-Host ("{0}{1}API setup failed with exit code {2}. Exiting.{3}" -f $RED, $BOLD, $api_status, $NC)
     exit $api_status
 }
 
@@ -160,7 +160,7 @@ Write-Host ("{0}{1}.env file created in src/api/.env.{2}" -f $GREEN, $BOLD, $NC)
 # Step 2: Setup UI dependencies
 $ui_status = Invoke-Setup -Component "UI" -ComponentPath "./infra/hooks/ui"
 if ($ui_status -ne 0) {
-    Write-Host ("{0}{1}UI setup failed with exit code $ui_status. Exiting.{2}" -f $RED, $BOLD, $NC)
+    Write-Host ("{0}{1}UI setup failed with exit code {2}. Exiting.{3}" -f $RED, $BOLD, $ui_status, $NC)
     exit $ui_status
 }
 
@@ -174,7 +174,7 @@ Write-Host ("{0}{1}.env file created in src/ui/.env.{2}" -f $GREEN, $BOLD, $NC)
 # Step 3: Setup MCP tools (env, dependencies, docker build)
 $mcp_status = Invoke-Setup -Component "MCP tools" -ComponentPath "./infra/hooks/mcp"
 if ($mcp_status -ne 0) {
-    Write-Host ("{0}{1}MCP tools setup failed with exit code $mcp_status. Exiting.{2}" -f $RED, $BOLD, $NC)
+    Write-Host ("{0}{1}MCP tools setup failed with exit code {2}. Exiting.{3}" -f $RED, $BOLD, $mcp_status, $NC)
     exit $mcp_status
 }
 
