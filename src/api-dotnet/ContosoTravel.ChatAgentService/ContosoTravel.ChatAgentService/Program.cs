@@ -21,33 +21,37 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // register the Microsoft Foundry Project
-builder.Services.AddSingleton<AIProjectClient>(sp =>
+// Register AIProjectClient only if Azure AI is configured
+var projectEndpoint = builder.Configuration["AzureAI:ProjectEndpoint"];
+if (!string.IsNullOrEmpty(projectEndpoint))
 {
-    var configuration = sp.GetRequiredService<IConfiguration>();
-    var projectEndpoint = configuration["AzureAI:ProjectEndpoint"];
-    var tenantId = configuration["AzureAI:TenantId"];
-    var agentId = configuration["AzureAI:AgentId"];
-
-    var credentialOptions = new DefaultAzureCredentialOptions();
-    if (!string.IsNullOrEmpty(tenantId))
+    builder.Services.AddSingleton<AIProjectClient>(sp =>
     {
-        credentialOptions = new DefaultAzureCredentialOptions()
-        { TenantId = tenantId };
-    }
-    var tokenCredential = new DefaultAzureCredential(options: credentialOptions);
+        var configuration = sp.GetRequiredService<IConfiguration>();
+        var tenantId = configuration["AzureAI:TenantId"];
+        var agentId = configuration["AzureAI:AgentId"];
 
-    return new AIProjectClient(
-            endpoint: new Uri(projectEndpoint),
-            tokenProvider: tokenCredential);
-});
+        var credentialOptions = new DefaultAzureCredentialOptions();
+        if (!string.IsNullOrEmpty(tenantId))
+        {
+            credentialOptions = new DefaultAzureCredentialOptions()
+            { TenantId = tenantId };
+        }
+        var tokenCredential = new DefaultAzureCredential(options: credentialOptions);
 
-// register the working agent
-var agentName = builder.Configuration["AzureAI:AgentName"];
-builder.AddAIAgent(agentName, (sp, key) =>
-{
-    var projectClient = sp.GetRequiredService<AIProjectClient>();
-    return projectClient.GetAIAgent(agentName);
-});
+        return new AIProjectClient(
+                endpoint: new Uri(projectEndpoint),
+                tokenProvider: tokenCredential);
+    });
+
+    // register the working agent
+    var agentName = builder.Configuration["AzureAI:AgentName"] ?? "travel-agent";
+    builder.AddAIAgent(agentName, (sp, key) =>
+    {
+        var projectClient = sp.GetRequiredService<AIProjectClient>();
+        return projectClient.GetAIAgent(agentName);
+    });
+}
 
 // Register services for OpenAI responses and conversations (required for DevUI)
 builder.Services.AddOpenAIResponses();
@@ -74,7 +78,7 @@ app.MapGet("/", () => Results.Ok(new { message = "ChatAgentService is running", 
 // Agent endpoints - Streaming chat endpoint compatible with frontend
 app.MapPost("/api/chat", async (ChatRequest request, IServiceProvider serviceProvider, HttpContext context, CancellationToken cancellationToken) =>
 {
-    var projectClient = serviceProvider.GetRequiredService<AIProjectClient>();
+    var agentName = app.Configuration["AzureAI:AgentName"] ?? "travel-agent";
     
     context.Response.Headers.Append("Content-Type", "text/event-stream");
     context.Response.Headers.Append("Cache-Control", "no-cache");
@@ -82,8 +86,41 @@ app.MapPost("/api/chat", async (ChatRequest request, IServiceProvider servicePro
 
     try
     {
-        // Get the agent - returns ChatClientAgent
-        var agent = projectClient.GetAIAgent(agentName);
+        // Try to get the AI agent if configured
+        AIAgent? agent = null;
+        try
+        {
+            agent = serviceProvider.GetRequiredKeyedService<AIAgent>(agentName);
+        }
+        catch
+        {
+            // Agent not configured, send a mock response
+            var mockResponse = $"🤖 Mock Agent Response: I received your message '{request.Message}'. To connect to a real Microsoft Foundry agent, configure AzureAI settings in appsettings.json.";
+            
+            var mockEventData = new
+            {
+                type = "metadata",
+                @event = "AgentStream",
+                data = new
+                {
+                    delta = mockResponse,
+                    agentName = "mock-agent"
+                }
+            };
+            
+            await context.Response.WriteAsync($"data: {System.Text.Json.JsonSerializer.Serialize(mockEventData)}\n\n", cancellationToken);
+            await context.Response.Body.FlushAsync(cancellationToken);
+            
+            var mockEndEvent = new
+            {
+                type = "metadata",
+                @event = "StopEvent",
+                data = new { agentName = "mock-agent" }
+            };
+            await context.Response.WriteAsync($"data: {System.Text.Json.JsonSerializer.Serialize(mockEndEvent)}\n\n", cancellationToken);
+            await context.Response.Body.FlushAsync(cancellationToken);
+            return;
+        }
         
         // Create chat messages using Microsoft.Extensions.AI
         var messages = new List<MEAIChatMessage>
@@ -91,13 +128,13 @@ app.MapPost("/api/chat", async (ChatRequest request, IServiceProvider servicePro
             new(MEAIChatRole.User, request.Message)
         };
         
-        // Access the underlying Client property which should be IChatClient
-        var chatClient = agent.Client;
-        
-        // Use CompleteStreamingAsync from IChatClient
-        await foreach (var update in chatClient.CompleteStreamingAsync(messages, cancellationToken: cancellationToken))
+        // Use RunStreamingAsync from AIAgent to get streaming responses
+        await foreach (var update in agent.RunStreamingAsync(messages, cancellationToken: cancellationToken))
         {
-            if (!string.IsNullOrEmpty(update.Text))
+            // Extract text content from the AgentRunResponseUpdate
+            string? textContent = update.ToString();
+            
+            if (!string.IsNullOrEmpty(textContent))
             {
                 var eventData = new
                 {
@@ -105,7 +142,7 @@ app.MapPost("/api/chat", async (ChatRequest request, IServiceProvider servicePro
                     @event = "AgentStream",
                     data = new
                     {
-                        delta = update.Text,
+                        delta = textContent,
                         agentName = agentName
                     }
                 };
@@ -144,10 +181,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 
-    // Map DevUI endpoints for agent debugging (development only)
-    app.MapOpenAIResponses();
-    app.MapOpenAIConversations();
-    app.MapDevUI();
+    // Map DevUI endpoints for agent debugging (development only) - only if agent is configured
+    if (!string.IsNullOrEmpty(projectEndpoint))
+    {
+        app.MapOpenAIResponses();
+        app.MapOpenAIConversations();
+        app.MapDevUI();
+    }
 }
 
 app.UseHttpsRedirection();
