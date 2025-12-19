@@ -34,7 +34,7 @@ builder.Services.AddCors(options =>
     }
 });
 
-builder.Services.AddSingleton<IChatAgentService, ChatAgentService>();
+builder.Services.AddSingleton<IChatAgentService, AzureAgentService>();
 
 var app = builder.Build();
 
