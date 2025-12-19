@@ -3,6 +3,10 @@ using Azure.Identity;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.DevUI;
 using Microsoft.Agents.AI.Hosting;
+using Microsoft.Extensions.AI;
+using System.Runtime.CompilerServices;
+using MEAIChatMessage = Microsoft.Extensions.AI.ChatMessage;
+using MEAIChatRole = Microsoft.Extensions.AI.ChatRole;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -67,21 +71,68 @@ app.MapGet("/", () => Results.Ok(new { message = "ChatAgentService is running", 
     .WithName("Root")
     .WithTags("Info");
 
-// Agent endpoints
-app.MapPost("/api/agents/chat", async (ChatRequest request, IServiceProvider serviceProvider) =>
+// Agent endpoints - Streaming chat endpoint compatible with frontend
+app.MapPost("/api/chat", async (ChatRequest request, IServiceProvider serviceProvider, HttpContext context, CancellationToken cancellationToken) =>
 {
-    AIAgent agent = serviceProvider.GetRequiredKeyedService<AIAgent>(agentName);
+    var projectClient = serviceProvider.GetRequiredService<AIProjectClient>();
+    
+    context.Response.Headers.Append("Content-Type", "text/event-stream");
+    context.Response.Headers.Append("Cache-Control", "no-cache");
+    context.Response.Headers.Append("Connection", "keep-alive");
+
     try
     {
-        var response = await agent.RunAsync(request);
-        return Results.Ok(response);
+        // Get the agent - returns ChatClientAgent which implements IChatClient
+        var agent = projectClient.GetAIAgent(agentName);
+        
+        // Create chat messages using Microsoft.Extensions.AI
+        var messages = new List<MEAIChatMessage>
+        {
+            new(MEAIChatRole.User, request.Message)
+        };
+        
+        // Use CompleteStreamingAsync from IChatClient (via extension method)
+        await foreach (var update in ((IChatClient)agent).CompleteStreamingAsync(messages, cancellationToken: cancellationToken))
+        {
+            if (!string.IsNullOrEmpty(update.Text))
+            {
+                var eventData = new
+                {
+                    type = "metadata",
+                    @event = "AgentStream",
+                    data = new
+                    {
+                        delta = update.Text,
+                        agentName = agentName
+                    }
+                };
+                
+                await context.Response.WriteAsync($"data: {System.Text.Json.JsonSerializer.Serialize(eventData)}\n\n", cancellationToken);
+                await context.Response.Body.FlushAsync(cancellationToken);
+            }
+        }
+
+        // Send end event
+        var endEvent = new
+        {
+            type = "metadata",
+            @event = "StopEvent",
+            data = new { agentName = agentName }
+        };
+        await context.Response.WriteAsync($"data: {System.Text.Json.JsonSerializer.Serialize(endEvent)}\n\n", cancellationToken);
+        await context.Response.Body.FlushAsync(cancellationToken);
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(new { error = ex.Message });
+        var errorEvent = new
+        {
+            type = "error",
+            message = ex.Message
+        };
+        await context.Response.WriteAsync($"data: {System.Text.Json.JsonSerializer.Serialize(errorEvent)}\n\n", cancellationToken);
     }
 })
-.WithName("ProcessChat")
+.WithName("StreamChat")
 .WithTags("Agents");
 
 
@@ -101,3 +152,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Models for API
+public record ChatRequest(string Message, List<ToolSelection>? Tools = null);
+public record ToolSelection(string Id, string Name);
