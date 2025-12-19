@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/bin/bash
 
 # Install dependencies for the API service
 printf ">> Installing dependencies for the API service...\n"
