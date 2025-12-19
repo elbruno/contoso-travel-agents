@@ -22,6 +22,7 @@ else
 
 // Add the chat agent backend service (.NET)
 var chatAgentService = builder.AddProject<Projects.ContosoTravel_ChatAgentService>("chatagentservice")
+    .WithReference(appInsights) // Add reference to Application Insights for telemetry
     .WithExternalHttpEndpoints();
 var chatAgentServiceHttp = chatAgentService.GetEndpoint("http");
 var chatAgentServiceHttps = chatAgentService.GetEndpoint("https");
@@ -31,7 +32,9 @@ var chatAgentServiceHttps = chatAgentService.GetEndpoint("https");
 var angularUI = builder.AddJavaScriptApp("travel-ui", "../../ui", "start")
     // add reference to the chat agent service so it can call it directly
     .WaitFor(chatAgentService)
-    .WithReference(chatAgentService)    
+    .WithReference(chatAgentService)
+    // Add reference to Application Insights for telemetry
+    .WithReference(appInsights) 
     // Expose external endpoints so the host can surface the UI URL
     .WithExternalHttpEndpoints()
     .WithEndpoint(port: 4200)
