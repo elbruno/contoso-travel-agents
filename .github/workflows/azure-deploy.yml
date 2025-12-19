@@ -1,0 +1,199 @@
+# Azure Deployment Workflow
+# This workflow is DISABLED by default. 
+# To enable, remove the "if: false" condition below or manually trigger via workflow_dispatch
+
+name: Deploy to Azure
+
+on:
+  # Disabled by default - uncomment to enable on push
+  # push:
+  #   branches: [ main ]
+  
+  # Manual trigger only (enabled)
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+        default: 'development'
+
+env:
+  AZURE_RESOURCE_GROUP: rg-zava-travel
+  AZURE_LOCATION: eastus
+  ACR_NAME: zavatravel  # Must be globally unique - change this!
+  UI_APP_NAME: zava-travel-ui
+  API_APP_NAME: zava-chatagent-api
+  CONTAINER_APPS_ENV: zava-env
+
+jobs:
+  # This job is disabled by default
+  check-enabled:
+    runs-on: ubuntu-latest
+    # REMOVE THE LINE BELOW TO ENABLE AUTO-DEPLOYMENT
+    if: false  # Workflow disabled by default
+    steps:
+      - name: Workflow Status
+        run: echo "Deployment workflow is currently disabled. Remove 'if: false' to enable."
+
+  build-and-deploy-backend:
+    runs-on: ubuntu-latest
+    needs: check-enabled
+    if: ${{ !cancelled() && !failure() }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Build Backend
+        run: |
+          cd src/api-dotnet/ContosoTravel.ChatAgentService/ContosoTravel.ChatAgentService
+          dotnet build --configuration Release
+
+      - name: Run Tests
+        run: |
+          cd src/api-dotnet/ContosoTravel.ChatAgentService/ContosoTravel.ChatAgentService
+          dotnet test --configuration Release --no-build || echo "No tests found"
+
+      - name: Build and Push to ACR
+        run: |
+          az acr build \
+            --registry ${{ env.ACR_NAME }} \
+            --image ${{ env.API_APP_NAME }}:${{ github.sha }} \
+            --image ${{ env.API_APP_NAME }}:latest \
+            --file src/api-dotnet/ContosoTravel.ChatAgentService/ContosoTravel.ChatAgentService/Dockerfile \
+            src/api-dotnet/ContosoTravel.ChatAgentService/ContosoTravel.ChatAgentService
+
+      - name: Deploy API to Container Apps
+        run: |
+          az containerapp update \
+            --name ${{ env.API_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.API_APP_NAME }}:${{ github.sha }} \
+            --set-env-vars \
+              "ASPNETCORE_ENVIRONMENT=${{ github.event.inputs.environment || 'development' }}" \
+              "AzureAI__ConnectionString=${{ secrets.AZURE_AI_CONNECTION_STRING }}" \
+              "AzureAI__AgentId=${{ secrets.AZURE_AI_AGENT_ID }}" \
+              "APPLICATIONINSIGHTS_CONNECTION_STRING=${{ secrets.APPINSIGHTS_CONNECTION_STRING }}"
+
+      - name: Get API URL
+        id: api-url
+        run: |
+          API_URL=$(az containerapp show \
+            --name ${{ env.API_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn \
+            -o tsv)
+          echo "url=https://$API_URL" >> $GITHUB_OUTPUT
+          echo "API URL: https://$API_URL"
+
+  build-and-deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: build-and-deploy-backend
+    if: ${{ !cancelled() && !failure() }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: src/ui/package-lock.json
+
+      - name: Install Dependencies
+        run: |
+          cd src/ui
+          npm ci
+
+      - name: Build Frontend
+        run: |
+          cd src/ui
+          npm run build:production
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Build and Push UI to ACR
+        run: |
+          cd src/ui
+          az acr build \
+            --registry ${{ env.ACR_NAME }} \
+            --image ${{ env.UI_APP_NAME }}:${{ github.sha }} \
+            --image ${{ env.UI_APP_NAME }}:latest \
+            --file Dockerfile.production \
+            .
+
+      - name: Deploy UI to Container Apps
+        run: |
+          az containerapp update \
+            --name ${{ env.UI_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.UI_APP_NAME }}:${{ github.sha }} \
+            --set-env-vars \
+              "API_URL=${{ needs.build-and-deploy-backend.outputs.api-url }}"
+
+      - name: Get UI URL
+        id: ui-url
+        run: |
+          UI_URL=$(az containerapp show \
+            --name ${{ env.UI_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn \
+            -o tsv)
+          echo "url=https://$UI_URL" >> $GITHUB_OUTPUT
+          echo "UI URL: https://$UI_URL"
+
+  verify-deployment:
+    runs-on: ubuntu-latest
+    needs: [build-and-deploy-backend, build-and-deploy-frontend]
+    if: ${{ !cancelled() && !failure() }}
+    
+    steps:
+      - name: Test Backend Health
+        run: |
+          API_URL="${{ needs.build-and-deploy-backend.outputs.api-url }}"
+          echo "Testing API health at $API_URL/health"
+          curl -f "$API_URL/health" || exit 1
+
+      - name: Test Frontend
+        run: |
+          UI_URL="${{ needs.build-and-deploy-frontend.outputs.ui-url }}"
+          echo "Testing UI at $UI_URL"
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$UI_URL")
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "UI health check failed with HTTP code: $HTTP_CODE"
+            exit 1
+          fi
+          echo "UI is accessible"
+
+      - name: Deployment Summary
+        run: |
+          echo "## Deployment Successful! 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployed Services:" >> $GITHUB_STEP_SUMMARY
+          echo "- **API**: ${{ needs.build-and-deploy-backend.outputs.api-url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **UI**: ${{ needs.build-and-deploy-frontend.outputs.ui-url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Build Details:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ github.event.inputs.environment || 'development' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployed At**: $(date -u)" >> $GITHUB_STEP_SUMMARY

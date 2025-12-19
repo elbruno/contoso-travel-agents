@@ -1,0 +1,182 @@
+# Azure Infrastructure Setup Workflow
+# This workflow creates the required Azure resources
+# Run this ONCE before deploying the application
+# This workflow is DISABLED by default and must be triggered manually
+
+name: Setup Azure Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      resource_group_name:
+        description: 'Azure Resource Group Name'
+        required: true
+        default: 'rg-zava-travel'
+      location:
+        description: 'Azure Location'
+        required: true
+        type: choice
+        options:
+          - eastus
+          - westus2
+          - centralus
+          - northeurope
+          - westeurope
+        default: 'eastus'
+      acr_name:
+        description: 'Azure Container Registry Name (must be globally unique)'
+        required: true
+        default: 'zavatravel'
+
+jobs:
+  setup-infrastructure:
+    runs-on: ubuntu-latest
+    # This workflow must be manually triggered
+    
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create Resource Group
+        run: |
+          echo "Creating resource group: ${{ github.event.inputs.resource_group_name }}"
+          az group create \
+            --name ${{ github.event.inputs.resource_group_name }} \
+            --location ${{ github.event.inputs.location }}
+
+      - name: Create Azure Container Registry
+        run: |
+          echo "Creating Azure Container Registry: ${{ github.event.inputs.acr_name }}"
+          az acr create \
+            --resource-group ${{ github.event.inputs.resource_group_name }} \
+            --name ${{ github.event.inputs.acr_name }} \
+            --sku Standard \
+            --admin-enabled true
+
+      - name: Create Container Apps Environment
+        run: |
+          echo "Creating Container Apps Environment: zava-env"
+          az containerapp env create \
+            --name zava-env \
+            --resource-group ${{ github.event.inputs.resource_group_name }} \
+            --location ${{ github.event.inputs.location }}
+
+      - name: Create Application Insights
+        run: |
+          echo "Creating Application Insights: zava-travel-insights"
+          az monitor app-insights component create \
+            --app zava-travel-insights \
+            --location ${{ github.event.inputs.location }} \
+            --resource-group ${{ github.event.inputs.resource_group_name }} \
+            --kind web \
+            --application-type web
+
+      - name: Get ACR Credentials
+        id: acr-creds
+        run: |
+          ACR_USERNAME=$(az acr credential show \
+            --name ${{ github.event.inputs.acr_name }} \
+            --query username -o tsv)
+          ACR_PASSWORD=$(az acr credential show \
+            --name ${{ github.event.inputs.acr_name }} \
+            --query "passwords[0].value" -o tsv)
+          ACR_LOGIN_SERVER="${{ github.event.inputs.acr_name }}.azurecr.io"
+          
+          echo "username=$ACR_USERNAME" >> $GITHUB_OUTPUT
+          echo "login_server=$ACR_LOGIN_SERVER" >> $GITHUB_OUTPUT
+          echo "::add-mask::$ACR_PASSWORD"
+
+      - name: Create API Container App
+        run: |
+          az containerapp create \
+            --name zava-chatagent-api \
+            --resource-group ${{ github.event.inputs.resource_group_name }} \
+            --environment zava-env \
+            --image mcr.microsoft.com/azuredocs/containerapps-helloworld:latest \
+            --target-port 8080 \
+            --ingress external \
+            --registry-server ${{ steps.acr-creds.outputs.login_server }} \
+            --registry-username ${{ steps.acr-creds.outputs.username }} \
+            --min-replicas 1 \
+            --max-replicas 3 \
+            --cpu 0.5 \
+            --memory 1.0Gi
+
+      - name: Create UI Container App
+        run: |
+          az containerapp create \
+            --name zava-travel-ui \
+            --resource-group ${{ github.event.inputs.resource_group_name }} \
+            --environment zava-env \
+            --image mcr.microsoft.com/azuredocs/containerapps-helloworld:latest \
+            --target-port 80 \
+            --ingress external \
+            --registry-server ${{ steps.acr-creds.outputs.login_server }} \
+            --registry-username ${{ steps.acr-creds.outputs.username }} \
+            --min-replicas 1 \
+            --max-replicas 5 \
+            --cpu 0.25 \
+            --memory 0.5Gi
+
+      - name: Get Application Insights Connection String
+        id: appinsights
+        run: |
+          CONN_STRING=$(az monitor app-insights component show \
+            --app zava-travel-insights \
+            --resource-group ${{ github.event.inputs.resource_group_name }} \
+            --query connectionString -o tsv)
+          echo "::add-mask::$CONN_STRING"
+          echo "connection_string=$CONN_STRING" >> $GITHUB_OUTPUT
+
+      - name: Get API URL
+        id: api-url
+        run: |
+          API_URL=$(az containerapp show \
+            --name zava-chatagent-api \
+            --resource-group ${{ github.event.inputs.resource_group_name }} \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "url=https://$API_URL" >> $GITHUB_OUTPUT
+
+      - name: Get UI URL
+        id: ui-url
+        run: |
+          UI_URL=$(az containerapp show \
+            --name zava-travel-ui \
+            --resource-group ${{ github.event.inputs.resource_group_name }} \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "url=https://$UI_URL" >> $GITHUB_OUTPUT
+
+      - name: Setup Summary
+        run: |
+          echo "## Azure Infrastructure Setup Complete! ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Created Resources:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Resource Group**: ${{ github.event.inputs.resource_group_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Location**: ${{ github.event.inputs.location }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Container Registry**: ${{ github.event.inputs.acr_name }}.azurecr.io" >> $GITHUB_STEP_SUMMARY
+          echo "- **Container Apps Environment**: zava-env" >> $GITHUB_STEP_SUMMARY
+          echo "- **Application Insights**: zava-travel-insights" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Application URLs (Placeholder):" >> $GITHUB_STEP_SUMMARY
+          echo "- **API**: ${{ steps.api-url.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **UI**: ${{ steps.ui-url.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Add the following secrets to your GitHub repository:" >> $GITHUB_STEP_SUMMARY
+          echo "   - \`AZURE_CREDENTIALS\` (if not already added)" >> $GITHUB_STEP_SUMMARY
+          echo "   - \`AZURE_AI_CONNECTION_STRING\` (your Azure AI Foundry connection string)" >> $GITHUB_STEP_SUMMARY
+          echo "   - \`AZURE_AI_AGENT_ID\` (your Azure AI agent ID)" >> $GITHUB_STEP_SUMMARY
+          echo "   - \`APPINSIGHTS_CONNECTION_STRING\` (copied below)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "2. Update the \`ACR_NAME\` in \`.github/workflows/azure-deploy.yml\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "3. Enable the deployment workflow by removing \`if: false\` from \`azure-deploy.yml\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "4. Trigger a deployment via workflow_dispatch or push to main branch" >> $GITHUB_STEP_SUMMARY
+
+      - name: Save Configuration
+        run: |
+          echo "Save these values as GitHub Secrets:"
+          echo "APPINSIGHTS_CONNECTION_STRING=${{ steps.appinsights.outputs.connection_string }}"
