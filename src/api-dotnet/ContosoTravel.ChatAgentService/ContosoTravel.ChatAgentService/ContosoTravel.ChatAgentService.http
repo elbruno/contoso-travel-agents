@@ -1,4 +1,4 @@
-@ContosoTravel.ChatAgentService_HostAddress = http://localhost:5000
+@ContosoTravel.ChatAgentService_HostAddress = http://localhost:5292
 
 ### Health Check
 GET {{ContosoTravel.ChatAgentService_HostAddress}}/health

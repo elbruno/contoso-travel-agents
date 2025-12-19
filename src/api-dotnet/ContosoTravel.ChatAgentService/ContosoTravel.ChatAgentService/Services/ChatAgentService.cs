@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using ContosoTravel.ChatAgentService.Models;
 
 namespace ContosoTravel.ChatAgentService.Services;
@@ -12,7 +13,7 @@ public interface IChatAgentService
 public class ChatAgentService : IChatAgentService
 {
     private readonly ILogger<ChatAgentService> _logger;
-    private readonly Dictionary<string, List<string>> _sessionHistory = new();
+    private readonly ConcurrentDictionary<string, ConcurrentQueue<string>> _sessionHistory = new();
 
     public ChatAgentService(ILogger<ChatAgentService> logger)
     {
@@ -25,12 +26,9 @@ public class ChatAgentService : IChatAgentService
 
         var sessionId = request.SessionId ?? Guid.NewGuid().ToString();
         
-        // Store conversation history
-        if (!_sessionHistory.ContainsKey(sessionId))
-        {
-            _sessionHistory[sessionId] = new List<string>();
-        }
-        _sessionHistory[sessionId].Add(request.Message);
+        // Store conversation history (thread-safe)
+        var queue = _sessionHistory.GetOrAdd(sessionId, _ => new ConcurrentQueue<string>());
+        queue.Enqueue(request.Message);
 
         // Simulate AI processing
         await Task.Delay(100); // Simulate processing time

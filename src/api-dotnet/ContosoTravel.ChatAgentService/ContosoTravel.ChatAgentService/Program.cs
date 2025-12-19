@@ -5,14 +5,33 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
 builder.Services.AddOpenApi();
+
+// Configure CORS based on environment
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
+    if (builder.Environment.IsDevelopment())
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
+        // Allow any origin in development for testing
+        options.AddDefaultPolicy(policy =>
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyMethod()
+                  .AllowAnyHeader();
+        });
+    }
+    else
+    {
+        // Restrict to specific origins in production
+        options.AddDefaultPolicy(policy =>
+        {
+            policy.WithOrigins(
+                      builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() 
+                      ?? new[] { "https://yourdomain.com" })
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials();
+        });
+    }
 });
 
 builder.Services.AddSingleton<IChatAgentService, ChatAgentService>();
