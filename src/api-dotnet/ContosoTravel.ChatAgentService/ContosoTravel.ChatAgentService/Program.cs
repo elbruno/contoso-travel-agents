@@ -82,7 +82,7 @@ app.MapPost("/api/chat", async (ChatRequest request, IServiceProvider servicePro
 
     try
     {
-        // Get the agent - returns ChatClientAgent which implements IChatClient
+        // Get the agent - returns ChatClientAgent
         var agent = projectClient.GetAIAgent(agentName);
         
         // Create chat messages using Microsoft.Extensions.AI
@@ -91,8 +91,11 @@ app.MapPost("/api/chat", async (ChatRequest request, IServiceProvider servicePro
             new(MEAIChatRole.User, request.Message)
         };
         
-        // Use CompleteStreamingAsync from IChatClient (via extension method)
-        await foreach (var update in ((IChatClient)agent).CompleteStreamingAsync(messages, cancellationToken: cancellationToken))
+        // Access the underlying Client property which should be IChatClient
+        var chatClient = agent.Client;
+        
+        // Use CompleteStreamingAsync from IChatClient
+        await foreach (var update in chatClient.CompleteStreamingAsync(messages, cancellationToken: cancellationToken))
         {
             if (!string.IsNullOrEmpty(update.Text))
             {
