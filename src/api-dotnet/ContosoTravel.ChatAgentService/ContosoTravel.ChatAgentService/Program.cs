@@ -25,7 +25,7 @@ builder.Services.AddCors(options =>
         options.AddDefaultPolicy(policy =>
         {
             policy.WithOrigins(
-                      builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() 
+                      builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
                       ?? new[] { "https://yourdomain.com" })
                   .AllowAnyMethod()
                   .AllowAnyHeader()
@@ -50,6 +50,11 @@ app.UseCors();
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", service = "chat-agent-service", version = "1.0.0" }))
     .WithName("HealthCheck")
     .WithTags("Health");
+
+// Root endpoint - return a friendly timestamp so callers can verify the backend is reachable
+app.MapGet("/", () => Results.Ok(new { message = "ChatAgentService is running", timestamp = DateTime.UtcNow }))
+    .WithName("Root")
+    .WithTags("Info");
 
 // Agent endpoints
 app.MapPost("/api/agents/chat", async (ChatRequest request, IChatAgentService agentService) =>
