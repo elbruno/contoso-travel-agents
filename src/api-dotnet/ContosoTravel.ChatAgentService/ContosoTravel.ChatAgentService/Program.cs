@@ -1,6 +1,8 @@
-using ContosoTravel.ChatAgentService.Models;
-using ContosoTravel.ChatAgentService.Services;
+using Azure.AI.Projects;
+using Azure.Identity;
+using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.DevUI;
+using Microsoft.Agents.AI.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,7 +16,34 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddSingleton<IChatAgentService, AzureAgentService>();
+// register the Microsoft Foundry Project
+builder.Services.AddSingleton<AIProjectClient>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var projectEndpoint = configuration["AzureAI:ProjectEndpoint"];
+    var tenantId = configuration["AzureAI:TenantId"];
+    var agentId = configuration["AzureAI:AgentId"];
+
+    var credentialOptions = new DefaultAzureCredentialOptions();
+    if (!string.IsNullOrEmpty(tenantId))
+    {
+        credentialOptions = new DefaultAzureCredentialOptions()
+        { TenantId = tenantId };
+    }
+    var tokenCredential = new DefaultAzureCredential(options: credentialOptions);
+
+    return new AIProjectClient(
+            endpoint: new Uri(projectEndpoint),
+            tokenProvider: tokenCredential);
+});
+
+// register the working agent
+var agentName = builder.Configuration["AzureAI:AgentName"];
+builder.AddAIAgent(agentName, (sp, key) =>
+{
+    var projectClient = sp.GetRequiredService<AIProjectClient>();
+    return projectClient.GetAIAgent(agentName);
+});
 
 // Register services for OpenAI responses and conversations (required for DevUI)
 builder.Services.AddOpenAIResponses();
@@ -39,11 +68,12 @@ app.MapGet("/", () => Results.Ok(new { message = "ChatAgentService is running", 
     .WithTags("Info");
 
 // Agent endpoints
-app.MapPost("/api/agents/chat", async (ChatRequest request, IChatAgentService agentService) =>
+app.MapPost("/api/agents/chat", async (ChatRequest request, IServiceProvider serviceProvider) =>
 {
+    AIAgent agent = serviceProvider.GetRequiredKeyedService<AIAgent>(agentName);
     try
     {
-        var response = await agentService.ProcessChatAsync(request);
+        var response = await agent.RunAsync(request);
         return Results.Ok(response);
     }
     catch (Exception ex)
@@ -54,28 +84,6 @@ app.MapPost("/api/agents/chat", async (ChatRequest request, IChatAgentService ag
 .WithName("ProcessChat")
 .WithTags("Agents");
 
-app.MapGet("/api/agents/capabilities", (IChatAgentService agentService) =>
-{
-    var capabilities = agentService.GetCapabilities();
-    return Results.Ok(capabilities);
-})
-.WithName("GetCapabilities")
-.WithTags("Agents");
-
-app.MapPost("/api/agents/analyze", async (AnalyzeRequest request, IChatAgentService agentService) =>
-{
-    try
-    {
-        var result = await agentService.AnalyzeQueryAsync(request);
-        return Results.Ok(result);
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { error = ex.Message });
-    }
-})
-.WithName("AnalyzeQuery")
-.WithTags("Agents");
 
 if (app.Environment.IsDevelopment())
 {
