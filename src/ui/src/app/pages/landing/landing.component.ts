@@ -41,6 +41,7 @@ interface Promotion {
 })
 export class LandingComponent {
   emblaApi = signal<EmblaCarouselType | undefined>(undefined);
+  currentSlideIndex = signal<number>(0);
   options = { loop: true };
 
   promotions: Promotion[] = [
@@ -75,7 +76,7 @@ export class LandingComponent {
       id: 4,
       title: 'Italian Romance',
       description:
-        'Fall in love with Italy art, cuisine, and breathtaking landscapes. From Rome to the Amalfi Coast.',
+        'Fall in love with Italy\'s art, cuisine, and breathtaking landscapes. From Rome to the Amalfi Coast.',
       imageUrl: 'https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?w=800',
       destination: 'Italy',
       discount: '18% OFF',
@@ -93,6 +94,11 @@ export class LandingComponent {
 
   onInit(embla: EmblaCarouselType) {
     this.emblaApi.set(embla);
+    
+    // Update current slide index on select
+    embla.on('select', () => {
+      this.currentSlideIndex.set(embla.selectedScrollSnap());
+    });
   }
 
   scrollPrev() {

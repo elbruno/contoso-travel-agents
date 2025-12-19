@@ -1,6 +1,35 @@
-@ContosoTravel.ChatAgentService_HostAddress = http://localhost:5292
+@ContosoTravel.ChatAgentService_HostAddress = http://localhost:5000
 
-GET {{ContosoTravel.ChatAgentService_HostAddress}}/weatherforecast/
+### Health Check
+GET {{ContosoTravel.ChatAgentService_HostAddress}}/health
 Accept: application/json
 
 ###
+
+### Get Agent Capabilities
+GET {{ContosoTravel.ChatAgentService_HostAddress}}/api/agents/capabilities
+Accept: application/json
+
+###
+
+### Process Chat Message
+POST {{ContosoTravel.ChatAgentService_HostAddress}}/api/agents/chat
+Content-Type: application/json
+
+{
+  "message": "I want to plan a trip to Iceland",
+  "sessionId": "test-session-123"
+}
+
+###
+
+### Analyze Query
+POST {{ContosoTravel.ChatAgentService_HostAddress}}/api/agents/analyze
+Content-Type: application/json
+
+{
+  "query": "What is the best time to visit Morocco?"
+}
+
+###
+
