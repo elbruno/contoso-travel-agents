@@ -5,7 +5,6 @@ var builder = DistributedApplication.CreateBuilder(args);
 // Add the following line to configure the Azure App Container environment
 builder.AddAzureContainerAppEnvironment("env");
 
-
 // Application Insights for telemetry
 IResourceBuilder<IResourceWithConnectionString>? appInsights;
 
