@@ -5,12 +5,27 @@ var builder = DistributedApplication.CreateBuilder(args);
 // Add the following line to configure the Azure App Container environment
 builder.AddAzureContainerAppEnvironment("env");
 
+
+// Application Insights for telemetry
+IResourceBuilder<IResourceWithConnectionString>? appInsights;
+
+if (builder.ExecutionContext.IsPublishMode)
+{
+    // PRODUCTION: Use Azure-provisioned services
+    appInsights = builder.AddAzureApplicationInsights("appInsights");
+}
+else
+{
+    // DEVELOPMENT: Use connection strings from configuration
+    appInsights = builder.AddConnectionString("appinsights", "APPLICATIONINSIGHTS_CONNECTION_STRING");
+}
+
 // Add the chat agent backend service (.NET)
 var chatAgentService = builder.AddProject<Projects.ContosoTravel_ChatAgentService>("chatagentservice")
     .WithExternalHttpEndpoints();
-
 var chatAgentServiceHttp = chatAgentService.GetEndpoint("http");
 var chatAgentServiceHttps = chatAgentService.GetEndpoint("https");
+
 
 // Register the Angular UI using the Aspire JavaScript hosting package
 var angularUI = builder.AddJavaScriptApp("travel-ui", "../../ui", "start")
