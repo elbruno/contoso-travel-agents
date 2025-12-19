@@ -1,0 +1,45 @@
+.embla {
+  position: relative;
+}
+
+.embla__container {
+  display: flex;
+}
+
+.embla__slide {
+  position: relative;
+  flex: 0 0 100%;
+  min-width: 0;
+}
+
+/* Smooth transitions */
+.embla__slide img {
+  transition: transform 0.3s ease;
+}
+
+.embla__slide:hover img {
+  transform: scale(1.02);
+}
+
+/* Gradient background matching the main app */
+.gradient-bg {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+/* Floating chat window styles */
+:host ::ng-deep .floating-chat-container [hlmCard] {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+:host ::ng-deep .floating-chat-container [hlmCardHeader] {
+  display: none !important;
+}
+
+:host ::ng-deep .floating-chat-container [hlmCardContent] {
+  height: calc(100% - 200px) !important;
+  max-height: calc(100% - 200px) !important;
+}

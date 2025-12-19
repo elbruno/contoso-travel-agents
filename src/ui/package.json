@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "cross-env NG_APP_ENV=development ng serve",
+    "start": "cross-env NG_APP_ENV=development ng serve --host 0.0.0.0 --port 4200",
     "build": "NG_APP_ENV=development ng build --configuration development",
     "build:docker": "NG_APP_ENV=docker ng build --configuration development",
     "build:production": "NG_APP_ENV=production ng build --configuration production",

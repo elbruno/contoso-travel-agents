@@ -1,0 +1,158 @@
+<main class="min-h-screen flex flex-col gradient-bg">
+  <!-- Hero Section with Carousel -->
+  <section class="w-full pt-16 pb-8">
+    <div class="container mx-auto px-4">
+      <div class="text-center mb-12">
+        <div class="flex justify-center mb-4">
+          <svg
+            width="80"
+            height="80"
+            viewBox="0 0 64 64"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle cx="32" cy="32" r="32" fill="#E0E7FF" />
+            <path
+              d="M32 16C24.268 16 18 22.268 18 30C18 39.5 32 56 32 56C32 56 46 39.5 46 30C46 22.268 39.732 16 32 16ZM32 36C28.686 36 26 33.314 26 30C26 26.686 28.686 24 32 24C35.314 24 38 26.686 38 30C38 33.314 35.314 36 32 36Z"
+              fill="#6366F1"
+            />
+          </svg>
+        </div>
+        <h1 class="text-5xl font-extrabold text-gray-800 tracking-tight mb-2">
+          Zava Travel Agents
+        </h1>
+        <p class="text-xl text-gray-600 font-medium">
+          Your AI-Powered Travel Partner
+        </p>
+      </div>
+
+      <!-- Promotions Carousel -->
+      <div class="relative max-w-6xl mx-auto">
+        <h2 class="text-3xl font-bold text-center mb-8 text-gray-800">
+          Featured Travel Deals
+        </h2>
+        <div
+          class="embla overflow-hidden rounded-2xl shadow-2xl"
+          emblaCarousel
+          [options]="options"
+          (emblaInit)="onInit($any($event))"
+        >
+          <div class="embla__container flex">
+            @for (promotion of promotions; track promotion.id) {
+            <div class="embla__slide flex-[0_0_100%] min-w-0">
+              <div class="relative h-[500px]">
+                <img
+                  [src]="promotion.imageUrl"
+                  [alt]="promotion.title"
+                  class="w-full h-full object-cover"
+                />
+                <div
+                  class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"
+                ></div>
+                <div
+                  class="absolute bottom-0 left-0 right-0 p-8 text-white space-y-4"
+                >
+                  <div class="flex items-center gap-4">
+                    <span
+                      class="bg-indigo-600 text-white px-4 py-2 rounded-full text-sm font-bold"
+                    >
+                      {{ promotion.discount }}
+                    </span>
+                    <span
+                      class="bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm"
+                    >
+                      {{ promotion.destination }}
+                    </span>
+                  </div>
+                  <h3 class="text-4xl font-bold">{{ promotion.title }}</h3>
+                  <p class="text-lg text-gray-200 max-w-2xl">
+                    {{ promotion.description }}
+                  </p>
+                </div>
+              </div>
+            </div>
+            }
+          </div>
+        </div>
+
+        <!-- Carousel Controls -->
+        <button
+          hlmBtn
+          size="icon"
+          variant="outline"
+          class="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full shadow-lg"
+          (click)="scrollPrev()"
+          aria-label="Previous promotion"
+        >
+          <ng-icon hlm name="lucideChevronLeft" size="lg" />
+        </button>
+        <button
+          hlmBtn
+          size="icon"
+          variant="outline"
+          class="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full shadow-lg"
+          (click)="scrollNext()"
+          aria-label="Next promotion"
+        >
+          <ng-icon hlm name="lucideChevronRight" size="lg" />
+        </button>
+
+        <!-- Carousel Dots -->
+        <div class="flex justify-center gap-2 mt-6">
+          @for (promotion of promotions; track promotion.id; let i = $index) {
+          <button
+            class="w-3 h-3 rounded-full transition-all"
+            [class.bg-indigo-600]="i === currentSlideIndex()"
+            [class.bg-gray-300]="i !== currentSlideIndex()"
+            (click)="scrollTo(i)"
+            [attr.aria-label]="'Go to promotion ' + (i + 1)"
+          ></button>
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="w-full py-6 text-center text-gray-600 border-t border-gray-200">
+    <p class="text-sm">
+      © 2025 Zava Travel Agents - Your AI-Powered Travel Partner.
+    </p>
+  </footer>
+
+  <!-- Floating Chat Button and Window -->
+  <div class="fixed bottom-6 right-6 z-50">
+    @if (!showChat()) {
+      <button
+        (click)="toggleChat()"
+        class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-4 shadow-2xl transition-all duration-200 hover:scale-110"
+        aria-label="Open chat"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+      </button>
+    } @else {
+      <div class="bg-white rounded-2xl shadow-2xl w-[400px] h-[600px] flex flex-col overflow-hidden">
+        <!-- Chat Header -->
+        <div class="bg-indigo-600 text-white p-4 flex justify-between items-center">
+          <h3 class="font-bold text-lg">AI Travel Assistant</h3>
+          <button
+            (click)="toggleChat()"
+            class="hover:bg-indigo-700 rounded-full p-1 transition-colors"
+            aria-label="Close chat"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        <!-- Chat Content -->
+        <div class="flex-1 overflow-hidden floating-chat-container">
+          <app-chat-conversation></app-chat-conversation>
+        </div>
+      </div>
+    }
+  </div>
+</main>

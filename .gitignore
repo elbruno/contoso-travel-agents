@@ -422,3 +422,4 @@ dist
 docs/.vuepress/dist/
 docs/.vuepress/.cache/
 docs/.vuepress/.temp/
+/src/api-dotnet/ContosoTravel.ChatAgentService/ContosoTravel.ChatAgentService/appsettings.Development.json
