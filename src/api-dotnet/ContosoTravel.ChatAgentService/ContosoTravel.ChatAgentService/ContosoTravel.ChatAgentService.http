@@ -1,0 +1,6 @@
+@ContosoTravel.ChatAgentService_HostAddress = http://localhost:5292
+
+GET {{ContosoTravel.ChatAgentService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
