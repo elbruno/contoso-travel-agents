@@ -12,6 +12,19 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
+// CORS: allow the UI during development to access the API from other hosts on the LAN
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("DevCors", policy =>
+    {
+        // Development convenience: allow any origin, method and header.
+        // In production you should lock this down to the UI's origin(s).
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 // Add services to the container
 builder.Services.AddOpenApi();
 
@@ -68,6 +81,11 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 app.MapDefaultEndpoints();
+// Use CORS policy in development so the UI can call the API when served from another host
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("DevCors");
+}
 
 
 // Root endpoint - return a friendly timestamp so callers can verify the backend is reachable
@@ -79,7 +97,7 @@ app.MapGet("/", () => Results.Ok(new { message = "ChatAgentService is running", 
 app.MapPost("/api/chat", async (ChatRequest request, IServiceProvider serviceProvider, HttpContext context, CancellationToken cancellationToken) =>
 {
     var agentName = app.Configuration["AzureAI:AgentName"] ?? "travel-agent";
-    
+
     context.Response.Headers.Append("Content-Type", "text/event-stream");
     context.Response.Headers.Append("Cache-Control", "no-cache");
     context.Response.Headers.Append("Connection", "keep-alive");
@@ -96,7 +114,7 @@ app.MapPost("/api/chat", async (ChatRequest request, IServiceProvider servicePro
         {
             // Agent not configured, send a mock response
             var mockResponse = $"🤖 Mock Agent Response: I received your message '{request.Message}'. To connect to a real Microsoft Foundry agent, configure AzureAI settings in appsettings.json.";
-            
+
             var mockEventData = new
             {
                 type = "metadata",
@@ -107,10 +125,10 @@ app.MapPost("/api/chat", async (ChatRequest request, IServiceProvider servicePro
                     agentName = "mock-agent"
                 }
             };
-            
+
             await context.Response.WriteAsync($"data: {System.Text.Json.JsonSerializer.Serialize(mockEventData)}\n\n", cancellationToken);
             await context.Response.Body.FlushAsync(cancellationToken);
-            
+
             var mockEndEvent = new
             {
                 type = "metadata",
@@ -121,19 +139,19 @@ app.MapPost("/api/chat", async (ChatRequest request, IServiceProvider servicePro
             await context.Response.Body.FlushAsync(cancellationToken);
             return;
         }
-        
+
         // Create chat messages using Microsoft.Extensions.AI
         var messages = new List<MEAIChatMessage>
         {
             new(MEAIChatRole.User, request.Message)
         };
-        
+
         // Use RunStreamingAsync from AIAgent to get streaming responses
         await foreach (var update in agent.RunStreamingAsync(messages, cancellationToken: cancellationToken))
         {
             // Extract text content from the AgentRunResponseUpdate
             string? textContent = update.ToString();
-            
+
             if (!string.IsNullOrEmpty(textContent))
             {
                 var eventData = new
@@ -146,7 +164,7 @@ app.MapPost("/api/chat", async (ChatRequest request, IServiceProvider servicePro
                         agentName = agentName
                     }
                 };
-                
+
                 await context.Response.WriteAsync($"data: {System.Text.Json.JsonSerializer.Serialize(eventData)}\n\n", cancellationToken);
                 await context.Response.Body.FlushAsync(cancellationToken);
             }
