@@ -1,7 +1,7 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.1.0">
+﻿<Project Sdk="Aspire.AppHost.Sdk/13.1.0">
 
   <ItemGroup>
-    <PackageReference Include="CommunityToolkit.Aspire.Hosting.JavaScript.Extensions" Version="13.0.1-beta.468" />
+    <PackageReference Include="Aspire.Hosting.JavaScript" Version="13.1.0" />
   </ItemGroup>
 
   <ItemGroup>
