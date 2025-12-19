@@ -12,4 +12,8 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\aspire\ContosoTravel.ServiceDefaults\ContosoTravel.ServiceDefaults.csproj" />
+  </ItemGroup>
+
 </Project>
