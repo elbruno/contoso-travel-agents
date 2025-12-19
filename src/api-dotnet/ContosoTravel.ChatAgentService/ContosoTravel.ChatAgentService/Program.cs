@@ -126,16 +126,18 @@ app.MapPost("/api/chat", async (ChatRequest request, IServiceProvider servicePro
                 }
             };
 
-            await context.Response.WriteAsync($"data: {System.Text.Json.JsonSerializer.Serialize(mockEventData)}\n\n", cancellationToken);
+
+            // Send raw JSON chunk (no 'data:' prefix) so frontend can split by double-newline
+            await context.Response.WriteAsync($"{System.Text.Json.JsonSerializer.Serialize(mockEventData)}\n\n", cancellationToken);
             await context.Response.Body.FlushAsync(cancellationToken);
 
             var mockEndEvent = new
             {
-                type = "metadata",
-                @event = "StopEvent",
+                // Frontend expects an 'end' type to signify stream completion
+                type = "end",
                 data = new { agentName = "mock-agent" }
             };
-            await context.Response.WriteAsync($"data: {System.Text.Json.JsonSerializer.Serialize(mockEndEvent)}\n\n", cancellationToken);
+            await context.Response.WriteAsync($"{System.Text.Json.JsonSerializer.Serialize(mockEndEvent)}\n\n", cancellationToken);
             await context.Response.Body.FlushAsync(cancellationToken);
             return;
         }
@@ -165,7 +167,8 @@ app.MapPost("/api/chat", async (ChatRequest request, IServiceProvider servicePro
                     }
                 };
 
-                await context.Response.WriteAsync($"data: {System.Text.Json.JsonSerializer.Serialize(eventData)}\n\n", cancellationToken);
+                // Send raw JSON chunk (no 'data:' prefix) so frontend's parser can parse each chunk
+                await context.Response.WriteAsync($"{System.Text.Json.JsonSerializer.Serialize(eventData)}\n\n", cancellationToken);
                 await context.Response.Body.FlushAsync(cancellationToken);
             }
         }
@@ -173,11 +176,11 @@ app.MapPost("/api/chat", async (ChatRequest request, IServiceProvider servicePro
         // Send end event
         var endEvent = new
         {
-            type = "metadata",
-            @event = "StopEvent",
+            // Use 'end' type to match frontend expectations for stream completion
+            type = "end",
             data = new { agentName = agentName }
         };
-        await context.Response.WriteAsync($"data: {System.Text.Json.JsonSerializer.Serialize(endEvent)}\n\n", cancellationToken);
+        await context.Response.WriteAsync($"{System.Text.Json.JsonSerializer.Serialize(endEvent)}\n\n", cancellationToken);
         await context.Response.Body.FlushAsync(cancellationToken);
     }
     catch (Exception ex)
@@ -187,7 +190,7 @@ app.MapPost("/api/chat", async (ChatRequest request, IServiceProvider servicePro
             type = "error",
             message = ex.Message
         };
-        await context.Response.WriteAsync($"data: {System.Text.Json.JsonSerializer.Serialize(errorEvent)}\n\n", cancellationToken);
+        await context.Response.WriteAsync($"{System.Text.Json.JsonSerializer.Serialize(errorEvent)}\n\n", cancellationToken);
     }
 })
 .WithName("StreamChat")

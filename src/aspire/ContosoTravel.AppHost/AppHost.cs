@@ -6,6 +6,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var chatAgentService = builder.AddProject<Projects.ContosoTravel_ChatAgentService>("chatagentservice")
     .WithExternalHttpEndpoints();
 
+var chatAgentServiceHttp = chatAgentService.GetEndpoint("http");
 var chatAgentServiceHttps = chatAgentService.GetEndpoint("https");
 
 // Register the Angular UI using the Aspire JavaScript hosting package
@@ -17,6 +18,6 @@ var angularUI = builder.AddJavaScriptApp("travel-ui", "../../ui", "start")
     .WithExternalHttpEndpoints()
     .WithEndpoint(port: 4200)
     // The UI expects the API url in NG_API_URL (see src/ui/.env), set that here
-    .WithEnvironment("NG_API_URL", chatAgentServiceHttps);
+    .WithEnvironment("NG_API_URL", chatAgentServiceHttp);
 
 builder.Build().Run();
