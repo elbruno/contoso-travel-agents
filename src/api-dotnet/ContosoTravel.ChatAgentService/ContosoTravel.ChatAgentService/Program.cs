@@ -1,40 +1,27 @@
 using ContosoTravel.ChatAgentService.Models;
 using ContosoTravel.ChatAgentService.Services;
+using Microsoft.Agents.AI.DevUI;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddServiceDefaults();
 
 // Add services to the container
 builder.Services.AddOpenApi();
 
-// Configure CORS based on environment
-builder.Services.AddCors(options =>
-{
-    if (builder.Environment.IsDevelopment())
-    {
-        // Allow any origin in development for testing
-        options.AddDefaultPolicy(policy =>
-        {
-            policy.AllowAnyOrigin()
-                  .AllowAnyMethod()
-                  .AllowAnyHeader();
-        });
-    }
-    else
-    {
-        // Restrict to specific origins in production
-        options.AddDefaultPolicy(policy =>
-        {
-            policy.WithOrigins(
-                      builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
-                      ?? new[] { "https://yourdomain.com" })
-                  .AllowAnyMethod()
-                  .AllowAnyHeader()
-                  .AllowCredentials();
-        });
-    }
-});
+// Add services to the container
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 builder.Services.AddSingleton<IChatAgentService, AzureAgentService>();
+
+// Register services for OpenAI responses and conversations (required for DevUI)
+builder.Services.AddOpenAIResponses();
+builder.Services.AddOpenAIConversations();
+
+// Add DevUI for agent debugging and visualization
+builder.AddDevUI();
 
 var app = builder.Build();
 
@@ -43,13 +30,8 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+app.MapDefaultEndpoints();
 
-app.UseCors();
-
-// Health check endpoint
-app.MapGet("/health", () => Results.Ok(new { status = "healthy", service = "chat-agent-service", version = "1.0.0" }))
-    .WithName("HealthCheck")
-    .WithTags("Health");
 
 // Root endpoint - return a friendly timestamp so callers can verify the backend is reachable
 app.MapGet("/", () => Results.Ok(new { message = "ChatAgentService is running", timestamp = DateTime.UtcNow }))
@@ -94,5 +76,20 @@ app.MapPost("/api/agents/analyze", async (AnalyzeRequest request, IChatAgentServ
 })
 .WithName("AnalyzeQuery")
 .WithTags("Agents");
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+
+    // Map DevUI endpoints for agent debugging (development only)
+    app.MapOpenAIResponses();
+    app.MapOpenAIConversations();
+    app.MapDevUI();
+}
+
+app.UseHttpsRedirection();
+app.UseAuthorization();
+app.MapControllers();
 
 app.Run();
