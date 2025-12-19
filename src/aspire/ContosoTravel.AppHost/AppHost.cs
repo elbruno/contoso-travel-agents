@@ -2,6 +2,9 @@ using Aspire.Hosting.JavaScript;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
+// Add the following line to configure the Azure App Container environment
+builder.AddAzureContainerAppEnvironment("env");
+
 // Add the chat agent backend service (.NET)
 var chatAgentService = builder.AddProject<Projects.ContosoTravel_ChatAgentService>("chatagentservice")
     .WithExternalHttpEndpoints();
