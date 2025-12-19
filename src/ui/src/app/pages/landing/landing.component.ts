@@ -42,6 +42,7 @@ interface Promotion {
 export class LandingComponent {
   emblaApi = signal<EmblaCarouselType | undefined>(undefined);
   currentSlideIndex = signal<number>(0);
+  showChat = signal<boolean>(false);
   options = { loop: true };
 
   promotions: Promotion[] = [
@@ -111,5 +112,9 @@ export class LandingComponent {
 
   scrollTo(index: number) {
     this.emblaApi()?.scrollTo(index);
+  }
+
+  toggleChat() {
+    this.showChat.set(!this.showChat());
   }
 }

@@ -25,3 +25,21 @@
 .gradient-bg {
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
+
+/* Floating chat window styles */
+:host ::ng-deep .floating-chat-container [hlmCard] {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+:host ::ng-deep .floating-chat-container [hlmCardHeader] {
+  display: none !important;
+}
+
+:host ::ng-deep .floating-chat-container [hlmCardContent] {
+  height: calc(100% - 200px) !important;
+  max-height: calc(100% - 200px) !important;
+}
