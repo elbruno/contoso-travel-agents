@@ -14,6 +14,7 @@ public class ChatAgentService : IChatAgentService
 {
     private readonly ILogger<ChatAgentService> _logger;
     private readonly ConcurrentDictionary<string, ConcurrentQueue<string>> _sessionHistory = new();
+    private const int MaxMessagesPerSession = 50; // Limit messages per session to prevent memory issues
 
     public ChatAgentService(ILogger<ChatAgentService> logger)
     {
@@ -26,9 +27,15 @@ public class ChatAgentService : IChatAgentService
 
         var sessionId = request.SessionId ?? Guid.NewGuid().ToString();
         
-        // Store conversation history (thread-safe)
+        // Store conversation history (thread-safe with size limit)
         var queue = _sessionHistory.GetOrAdd(sessionId, _ => new ConcurrentQueue<string>());
         queue.Enqueue(request.Message);
+        
+        // Maintain size limit - remove oldest messages if exceeded
+        while (queue.Count > MaxMessagesPerSession)
+        {
+            queue.TryDequeue(out _);
+        }
 
         // Simulate AI processing
         await Task.Delay(100); // Simulate processing time
